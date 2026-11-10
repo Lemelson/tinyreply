@@ -1,4 +1,4 @@
-<p align="center"><img src="docs/img/hero.svg" alt="tinyreply: Instagram comment to DM autoresponder. 32 MB RAM, 0 dependencies, 0 open ports, 1,089 tests" width="100%"></p>
+<p align="center"><img src="docs/img/hero.svg" alt="tinyreply: comment a keyword, get the link in DM. 32 MB RAM, 0 dependencies, 0 open ports, 1,089 tests" width="100%"></p>
 
 <p align="center">
   <a href="https://github.com/Lemelson/tinyreply/actions/workflows/tests.yml"><img alt="tests" src="https://github.com/Lemelson/tinyreply/actions/workflows/tests.yml/badge.svg"></a>
@@ -8,7 +8,7 @@
 </p>
 
 **tinyreply** is a self-hosted, ManyChat-style "comment a keyword, get the link in DM" bot for Instagram.
-Someone comments `guide` under your reel, and a minute later they have a private message with your link and a
+Someone comments `guide` under your reel, and a minute or two later they have a private message with your link and a
 public "check your DMs" reply under their comment.
 
 It is the opposite of the usual open-source ManyChat clone: not a platform for agencies, but **one small
@@ -48,15 +48,29 @@ and sends at most `max_sends_per_hour` private replies. Meta allows **one** priv
 `uncertain`, the bot does **not** retry it, and you are told. A second DM to the same person is worse than one
 missed DM that you can check by hand.
 
-You see the state of everything with one command:
+### What gets matched
 
-<p align="center"><img src="docs/img/report.svg" alt="igbot report output" width="100%"></p>
+<p align="center"><img src="docs/img/matcher.svg" alt="Real comments and what the matcher does with each: DM, flagged for review, or ignored" width="100%"></p>
+
+Nothing is fuzzy-guessed. Typos you want to accept go into `also_match`. The report lists frequent short comments
+that did not match, so you see which typos are worth adding.
+
+### When something goes wrong
+
+<p align="center"><img src="docs/img/failures.svg" alt="How each kind of failure is handled: uncertain answers are never retried, rate limits and spam flags pause sending, crashes never cause a second DM" width="100%"></p>
+
+### One command shows everything
+
+<p align="center"><img src="docs/img/report.svg" alt="igbot report output, translated to English" width="100%"></p>
+
+The bot prints this report in Russian today; the picture is a line-by-line translation of a real run against the
+bundled fake Meta API.
 
 ## Compared with the alternatives
 
 <p align="center"><img src="docs/img/architecture.svg" alt="A typical clone needs a public HTTPS endpoint, a web app, a worker, Postgres, Redis and SMTP. tinyreply is one process and one SQLite file with outbound connections only." width="100%"></p>
 
-<p align="center"><img src="docs/img/memory.svg" alt="Memory: tinyreply 32 MB, OpenReply about 350 to 700 MB, ChatbotX 2 GB or more" width="100%"></p>
+<p align="center"><img src="docs/img/memory.svg" alt="Footprint: tinyreply uses 32 MB and one process; OpenReply about 350 to 700 MB and 4+ services; ChatbotX 2 GB or more and about 10 services" width="100%"></p>
 
 The two most popular open-source projects in this niche, checked on 10 Nov 2026:
 
@@ -205,6 +219,10 @@ python3 -m unittest discover -s sim -t .       # 299 tests against the fake Meta
 python3 sim/soak.py --only named               # named end-to-end scenarios
 python3 sim/soak.py --seeds 30 --start 100     # randomized fault-injection runs
 ```
+
+## Credits
+
+Diagram logos from [Simple Icons](https://simpleicons.org) (CC0) and icons from [Lucide](https://lucide.dev) (ISC); see `docs/icons/NOTICE.md`. Regenerate the diagrams with `python3 docs/make_images.py`.
 
 ## License
 
