@@ -1,0 +1,34 @@
+# /etc/systemd/system/ig-autoreply.service (autoreply/SPEC.md sections 3 and 12)
+#
+# Code in /opt/ig-autoreply (owned by root), state in /opt/ig-autoreply/state (owned by igbot):
+# core.db, core.lock, config.json and .env (mode 600). The secrets are read from state/.env
+# by the bot itself in every cycle: there is no EnvironmentFile on purpose.
+[Unit]
+Description=Instagram comment-to-DM bot (core v2)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+# READY=1 comes once the lock is taken and the schema is ready, WATCHDOG=1 after every HTTP call and in
+# every sleep slice: a bot that hangs is killed and started again after WatchdogSec.
+Type=notify
+WatchdogSec=300
+User=igbot
+WorkingDirectory=/opt/ig-autoreply
+Environment=STATE_DIR=/opt/ig-autoreply/state
+ExecStart=/usr/bin/python3 -B /opt/ig-autoreply/bot.py run
+Restart=always
+RestartSec=30
+# 3 = another process holds core.lock, 4 = config.json is invalid, 6 = the database is unusable: a restart
+# cannot help, a human must look (each is announced on Telegram as `fatal_start`). The bot ends with these codes
+# only when Telegram confirmed that message; unheard, it ends with 1 and is started again (SPEC section 3).
+RestartPreventExitStatus=3 4 6
+# SIGTERM lets an in-flight HTTP call and its database write finish.
+# HTTP I/O budget is 60 s; OS spawn/reap/scheduling is not hard realtime (SPEC section 6).
+TimeoutStopSec=120
+MemoryMax=100M
+UMask=0077
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=multi-user.target

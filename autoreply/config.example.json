@@ -1,0 +1,40 @@
+{
+  "api_version": "v26.0",
+  "sending": false,
+  "poll_interval_sec": 90,
+  "max_sends_per_hour": 60,
+  "public_reply": true,
+  "profile_url": "https://www.instagram.com/your_account/",
+  "greeting": "Привет! 👋",
+  "late_greeting": "Привет! 👋 Лучше поздно, чем никогда 😄",
+  "late_after_minutes": 60,
+  "public_phrases": [
+    "Отправил в директ 📩",
+    "Лови в личке 🔥",
+    "Скинул в директ! Если не видно, загляни в «Запросы» 📬",
+    "Готово, проверь сообщения ✌️",
+    "Уже в директе 👀",
+    "Написал тебе в личку 🚀",
+    "Ссылка ждет в директе ⚡️",
+    "Отправил! Проверь директ, может лежать в «Запросах» 🙌",
+    "Держи, все в личке 🤝",
+    "Есть! Глянь директ 💬"
+  ],
+  "reels": [
+    {
+      "name": "arena",
+      "media_id": "17900000000000101",
+      "permalink": "",
+      "active": true,
+      "keywords": ["арена", "arena"],
+      "also_match": ["арееа", "areba", "arrna"],
+      "max_words": 5,
+      "link": "https://github.com/Jakeschincariol/arena-skill",
+      "text": "{greeting} Держи Arena Skill для Claude Code 👇 Кинь ссылку Клоду, он сам все поставит. Дальше пиши /arena и задачу, и получишь лучший ответ из кучи вариантов.\n\nЯ только запускаю блог про Claude и нейросети, подписывайся, будет много полезного 🙌"
+    }
+  ],
+  "alerts": {
+    "repeat_min": 120,
+    "digest_hour_utc": 6
+  }
+}

@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" width="1200" height="360" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1b1035"/>
+      <stop offset="1" stop-color="#3a0d2a"/>
+    </linearGradient>
+    <linearGradient id="acc" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#f58529"/>
+      <stop offset="0.5" stop-color="#dd2a7b"/>
+      <stop offset="1" stop-color="#8134af"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="360" rx="24" fill="url(#bg)"/>
+  <text x="64" y="104" font-size="64" font-weight="800" fill="#ffffff" letter-spacing="-1.5">tinyreply</text>
+  <rect x="64" y="124" width="132" height="6" rx="3" fill="url(#acc)"/>
+  <text x="64" y="176" font-size="26" fill="#e9e3f5">Instagram comment → DM autoresponder that fits on the smallest VPS.</text>
+  <text x="64" y="212" font-size="20" fill="#b9add0">Official Meta API · one Python process · one SQLite file · nobody gets the DM twice.</text>
+
+  <g transform="translate(64,250)">
+    <rect width="246" height="74" rx="14" fill="#ffffff" fill-opacity="0.08" stroke="#ffffff" stroke-opacity="0.15"/>
+    <text x="20" y="38" font-size="30" font-weight="800" fill="#ffffff">32 MB</text>
+    <text x="20" y="60" font-size="15" fill="#c9bfdc">RAM on a live server</text>
+  </g>
+  <g transform="translate(330,250)">
+    <rect width="246" height="74" rx="14" fill="#ffffff" fill-opacity="0.08" stroke="#ffffff" stroke-opacity="0.15"/>
+    <text x="20" y="38" font-size="30" font-weight="800" fill="#ffffff">0</text>
+    <text x="20" y="60" font-size="15" fill="#c9bfdc">third-party dependencies</text>
+  </g>
+  <g transform="translate(596,250)">
+    <rect width="246" height="74" rx="14" fill="#ffffff" fill-opacity="0.08" stroke="#ffffff" stroke-opacity="0.15"/>
+    <text x="20" y="38" font-size="30" font-weight="800" fill="#ffffff">0</text>
+    <text x="20" y="60" font-size="15" fill="#c9bfdc">open ports (no webhook needed)</text>
+  </g>
+  <g transform="translate(862,250)">
+    <rect width="274" height="74" rx="14" fill="#ffffff" fill-opacity="0.08" stroke="#ffffff" stroke-opacity="0.15"/>
+    <text x="20" y="38" font-size="30" font-weight="800" fill="#ffffff">1,089</text>
+    <text x="20" y="60" font-size="15" fill="#c9bfdc">tests + a fake-Meta simulator</text>
+  </g>
+</svg>

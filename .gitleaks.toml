@@ -1,0 +1,10 @@
+# gitleaks config: default rules plus two intentional test fixtures.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Throwaway test fixtures, not secrets"
+# A self-signed certificate/key used only for a TLS test against 127.0.0.1.
+paths = ['''autoreply/tests/test_meta_client\.py''']
+# Fake token strings used by the simulator tests.
+regexes = ['''IGAAlonglived\d*''', '''IGAA[A-Za-z]*(test|older|fake|demo)[A-Za-z0-9]*''']

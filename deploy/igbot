@@ -1,0 +1,15 @@
+#!/bin/sh
+# /usr/local/bin/igbot: the bot's command line, run as the service user (autoreply/SPEC.md section 12).
+#
+#   igbot report | igbot check --online | igbot arm 20 | igbot disarm | igbot send-one COMMENT_ID |
+#   igbot ack-uncertain COMMENT_ID ("I looked at this delivery by hand": a mark only, nothing is sent) | ...
+#
+# The caller's environment is dropped: the bot must see the service's STATE_DIR and nothing else, above all
+# no IG_API_BASE, TG_API_BASE, CLOCK_SCALE or CONFIG left over in a shell. Secrets come from STATE_DIR/.env.
+# umask 077 as in the unit: a database first created by `igbot once` is as private as the service's own.
+set -eu
+umask 077
+as_igbot=""
+[ "$(id -un)" = igbot ] || as_igbot="sudo -u igbot --"
+exec $as_igbot /usr/bin/env -i PATH=/usr/bin:/bin PYTHONUTF8=1 STATE_DIR=/opt/ig-autoreply/state \
+    /usr/bin/python3 -B /opt/ig-autoreply/bot.py "$@"

@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 430" width="1200" height="430" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#94a3b8"/></marker>
+    <marker id="p" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#dd2a7b"/></marker>
+  </defs>
+  <rect width="1200" height="430" rx="20" fill="#ffffff" stroke="#e2e8f0"/>
+
+  <!-- left: typical stack -->
+  <text x="40" y="50" font-size="20" font-weight="700" fill="#0f172a">A typical open-source ManyChat clone</text>
+  <text x="40" y="74" font-size="14" fill="#64748b">Built for cloud hosting and agencies</text>
+  <g font-size="15" fill="#0f172a">
+    <rect x="40" y="96" width="200" height="56" rx="10" fill="#f1f5f9" stroke="#cbd5e1"/>
+    <text x="56" y="130">🌐 Public HTTPS + TLS</text>
+    <rect x="300" y="96" width="250" height="56" rx="10" fill="#f1f5f9" stroke="#cbd5e1"/>
+    <text x="316" y="130">⚛️ Web app (Next.js)</text>
+    <line x1="240" y1="124" x2="296" y2="124" stroke="#94a3b8" stroke-width="2" marker-end="url(#a)"/>
+    <text x="70" y="176" font-size="13" fill="#64748b">Meta webhooks in</text>
+
+    <rect x="300" y="176" width="250" height="56" rx="10" fill="#f1f5f9" stroke="#cbd5e1"/>
+    <text x="316" y="210">⚙️ Queue worker</text>
+    <rect x="40" y="256" width="160" height="56" rx="10" fill="#f1f5f9" stroke="#cbd5e1"/>
+    <text x="56" y="290">🐘 PostgreSQL</text>
+    <rect x="220" y="256" width="150" height="56" rx="10" fill="#f1f5f9" stroke="#cbd5e1"/>
+    <text x="236" y="290">🧱 Redis</text>
+    <rect x="390" y="256" width="160" height="56" rx="10" fill="#f1f5f9" stroke="#cbd5e1"/>
+    <text x="406" y="290">✉️ SMTP (login)</text>
+    <line x1="425" y1="152" x2="425" y2="172" stroke="#94a3b8" stroke-width="2" marker-end="url(#a)"/>
+    <line x1="425" y1="232" x2="295" y2="252" stroke="#94a3b8" stroke-width="2" marker-end="url(#a)"/>
+    <line x1="425" y1="232" x2="120" y2="252" stroke="#94a3b8" stroke-width="2" marker-end="url(#a)"/>
+    <line x1="425" y1="232" x2="470" y2="252" stroke="#94a3b8" stroke-width="2" marker-end="url(#a)"/>
+    <text x="40" y="350" font-size="14" fill="#64748b">4–10 processes · build step of 1–2 GB · a domain with a</text>
+    <text x="40" y="370" font-size="14" fill="#64748b">stable HTTPS address (a changed URL breaks OAuth and webhooks)</text>
+  </g>
+
+  <line x1="600" y1="40" x2="600" y2="400" stroke="#e2e8f0" stroke-width="2"/>
+
+  <!-- right: tinyreply -->
+  <text x="640" y="50" font-size="20" font-weight="700" fill="#dd2a7b">tinyreply</text>
+  <text x="640" y="74" font-size="14" fill="#64748b">Built for one creator on one small server</text>
+  <g font-size="15" fill="#0f172a">
+    <rect x="640" y="120" width="250" height="110" rx="14" fill="#fdf2f8" stroke="#dd2a7b" stroke-width="2"/>
+    <text x="660" y="156" font-weight="700">🐍 bot.py run</text>
+    <text x="660" y="182" fill="#475569">1 process · 1 thread</text>
+    <text x="660" y="206" fill="#475569">Python standard library</text>
+    <rect x="640" y="256" width="250" height="56" rx="10" fill="#f8fafc" stroke="#cbd5e1"/>
+    <text x="660" y="290">🗄️ core.db (SQLite, WAL)</text>
+    <line x1="765" y1="230" x2="765" y2="252" stroke="#94a3b8" stroke-width="2" marker-end="url(#a)"/>
+
+    <rect x="950" y="110" width="200" height="56" rx="10" fill="#f8fafc" stroke="#cbd5e1"/>
+    <text x="966" y="144">📷 Instagram API</text>
+    <rect x="950" y="186" width="200" height="56" rx="10" fill="#f8fafc" stroke="#cbd5e1"/>
+    <text x="966" y="220">✈️ Telegram alerts</text>
+    <line x1="890" y1="150" x2="946" y2="140" stroke="#dd2a7b" stroke-width="2" marker-end="url(#p)"/>
+    <line x1="890" y1="200" x2="946" y2="212" stroke="#dd2a7b" stroke-width="2" marker-end="url(#p)"/>
+    <text x="900" y="270" font-size="13" fill="#64748b">outbound only</text>
+    <text x="640" y="350" font-size="14" fill="#64748b">No listener, no build step, no Docker, no domain.</text>
+    <text x="640" y="370" font-size="14" fill="#64748b">Runs behind NAT, on a home box or next to 15 other services.</text>
+  </g>
+</svg>

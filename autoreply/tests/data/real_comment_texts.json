@@ -1,0 +1,101 @@
+{
+ "_comment": "Distinct texts of the 1,108 real matched comments under the 'arena' reel (pulled 2026-10-03, counts only, no usernames except public @mentions inside the text). Entries 14 and 16 contain a LATIN capital A followed by Cyrillic letters. All must be 'match' with config.example.json.",
+ "must_match": [
+  {
+   "text": "Арена",
+   "count": 933
+  },
+  {
+   "text": "арена",
+   "count": 107
+  },
+  {
+   "text": "Arena",
+   "count": 29
+  },
+  {
+   "text": "АРЕНА",
+   "count": 19
+  },
+  {
+   "text": "arena",
+   "count": 4
+  },
+  {
+   "text": "Арена🔥",
+   "count": 2
+  },
+  {
+   "text": "Арееа",
+   "count": 1
+  },
+  {
+   "text": "Аренааа",
+   "count": 1
+  },
+  {
+   "text": "Areba",
+   "count": 1
+  },
+  {
+   "text": "Arrna",
+   "count": 1
+  },
+  {
+   "text": "Арена)",
+   "count": 1
+  },
+  {
+   "text": "ARENA",
+   "count": 1
+  },
+  {
+   "text": "Арене",
+   "count": 1
+  },
+  {
+   "text": "@your_account арена",
+   "count": 1
+  },
+  {
+   "text": "AРена",
+   "count": 1
+  },
+  {
+   "text": "Арены",
+   "count": 1
+  },
+  {
+   "text": "Aрена",
+   "count": 1
+  },
+  {
+   "text": "@your_account  арена",
+   "count": 1
+  },
+  {
+   "text": "Арена скил",
+   "count": 1
+  },
+  {
+   "text": "@a_friend арена",
+   "count": 1
+  }
+ ],
+ "must_not_match": [
+  "Арина",
+  "Ирена",
+  "Алёна",
+  "к чему это",
+  "зачем арена?",
+  "арена это что вообще такое и зачем она нужна людям",
+  "привет Арина как дела",
+  "",
+  "🔥🔥🔥",
+  "класс",
+  "арендa",
+  "Марена",
+  "gif",
+  "skill"
+ ]
+}

@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400" width="1200" height="400" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <rect width="1200" height="400" rx="20" fill="#ffffff" stroke="#e2e8f0"/>
+  <text x="40" y="48" font-size="22" font-weight="700" fill="#0f172a">Memory needed to run it</text>
+  <text x="40" y="74" font-size="15" fill="#64748b">Scale: 0 → 2 GB. A typical $3–5 VPS has 1 GB of RAM in total (dashed line).</text>
+
+  <!-- axis: x from 300 to 1140 = 840px for 2048 MB => 0.41 px/MB -->
+  <line x1="420" y1="100" x2="420" y2="340" stroke="#e2e8f0"/>
+  <line x1="770" y1="96" x2="770" y2="340" stroke="#94a3b8" stroke-dasharray="6 6"/>
+  <text x="776" y="112" font-size="13" fill="#64748b">1 GB VPS</text>
+
+  <g font-size="16">
+    <text x="40" y="146" font-weight="700" fill="#0f172a">tinyreply</text>
+    <text x="40" y="166" font-size="13" fill="#64748b">measured, live service</text>
+    <rect x="420" y="132" width="11" height="30" rx="4" fill="#dd2a7b"/>
+    <text x="442" y="153" font-weight="700" fill="#dd2a7b">32 MB</text>
+
+    <text x="40" y="216" font-weight="700" fill="#0f172a">OpenReply</text>
+    <text x="40" y="236" font-size="13" fill="#64748b">estimate: web + worker + Postgres + Redis</text>
+    <rect x="420" y="202" width="120" height="30" rx="4" fill="#cbd5e1"/>
+    <rect x="540" y="202" width="119" height="30" rx="4" fill="#e2e8f0"/>
+    <text x="670" y="223" fill="#334155">≈ 350–700 MB</text>
+
+    <text x="40" y="286" font-weight="700" fill="#0f172a">ChatbotX</text>
+    <text x="40" y="306" font-size="13" fill="#64748b">documented min.; issues report 3–6 GB</text>
+    <rect x="420" y="272" width="700" height="30" rx="4" fill="#cbd5e1"/>
+    <text x="1110" y="293" text-anchor="end" fill="#334155" font-weight="700">2 GB +</text>
+  </g>
+  <text x="40" y="374" font-size="13" fill="#94a3b8">tinyreply: VmRSS of the running systemd service on Ubuntu 24.04, Nov 2026. Others: their docs, issue trackers and our reading of their stacks; not benchmarks.</text>
+</svg>

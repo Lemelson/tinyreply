@@ -1,0 +1,20 @@
+# Everything that belongs to one installation stays out of git:
+# tokens (.env), settings (config.json), the database and its lock.
+.env
+.env.*
+!.env.example
+state/
+config.json
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+*.sqlite-wal
+*.sqlite-shm
+*.lock
+
+__pycache__/
+*.pyc
+.DS_Store
+artifacts/

@@ -1,0 +1,2 @@
+# Files allowed to contain a PEM private key: throwaway test fixtures only. One path per line.
+autoreply/tests/test_meta_client.py
