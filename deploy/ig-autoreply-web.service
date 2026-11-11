@@ -1,0 +1,43 @@
+# /etc/systemd/system/ig-autoreply-web.service (autoreply/SPEC.md section 14.1)
+#
+# The web process: Meta's webhook (/meta/webhook), tracked links (/r/<token>) and the panel (/panel/), on
+# 127.0.0.1:5421 behind nginx (deploy/nginx-ig-autoreply.conf). It never calls Meta and never sends: its only
+# writes are inbound events and clicks in state/core.db, which the bot (ig-autoreply.service) reads.
+# Secrets (IG_APP_SECRET, WEBHOOK_VERIFY_TOKEN, PANEL_PASSWORD) are read from state/.env on every request:
+# there is no EnvironmentFile on purpose. Panel files: /opt/ig-autoreply/dashboard (the repo's dashboard/).
+[Unit]
+Description=Instagram comment-to-DM bot: webhook, click redirect and panel (web.py)
+After=network.target
+
+[Service]
+Type=simple
+User=igbot
+WorkingDirectory=/opt/ig-autoreply
+Environment=STATE_DIR=/opt/ig-autoreply/state
+Environment=PANEL_DIR=/opt/ig-autoreply/dashboard
+Environment=WEB_PORT=5421
+ExecStart=/usr/bin/python3 -B /opt/ig-autoreply/web.py
+Restart=always
+RestartSec=5
+TimeoutStopSec=15
+MemoryMax=60M
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectHome=yes
+ProtectSystem=strict
+# SQLite writes core.db, core.db-wal and core.db-shm next to each other
+ReadWritePaths=/opt/ig-autoreply/state
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+# it listens on localhost and calls nobody: no address outside the machine, in or out
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+IPAddressDeny=any
+IPAddressAllow=localhost
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,1143 @@
+{
+ "demo": true,
+ "generated_at": "2026-10-06T11:05:00Z",
+ "account": {
+  "username": "your.account",
+  "name": "Alex",
+  "followers": {
+   "now": 12480,
+   "day_ago": 12268,
+   "week_ago": 10911
+  }
+ },
+ "limits": {
+  "max_sends_per_hour": 60,
+  "window_days": 7,
+  "poll_interval_sec": 90,
+  "late_after_minutes": 60,
+  "greeting": "Hi! 👋",
+  "late_greeting": "Hi! 👋 Better late than never 😄",
+  "public_reply": true,
+  "public_phrases": [
+   "Sent you a DM 📩",
+   "Check your DMs 🔥",
+   "Sent! If you can't see it, look in Message requests 📬",
+   "Done, check your messages ✌️",
+   "It's in your DMs 👀",
+   "Just messaged you 🚀",
+   "The link is waiting in your DMs ⚡️",
+   "Sent! It may be in Message requests 🙌",
+   "Here you go, check your inbox 🤝",
+   "Got it! Check your DMs 💬"
+  ],
+  "alerts": {
+   "repeat_min": 120,
+   "digest_hour_msk": 9
+  },
+  "token_expires_in_days": 52,
+  "version": "demo",
+  "stages": [
+   1,
+   10,
+   50,
+   "unlimited"
+  ]
+ },
+ "scenarios": {
+  "attention": {
+   "label": "Needs a check",
+   "service": {
+    "running": true,
+    "last_cycle_sec": 40,
+    "sending": true,
+    "budget": 38,
+    "armed_n": 50,
+    "account_hold": null,
+    "send_hold": null,
+    "meta_ok": true,
+    "telegram_ok": true
+   },
+   "problems": [
+    {
+     "key": "uncertain_manual",
+     "level": "warn",
+     "title": "2 people: not sure the message arrived",
+     "text": "Instagram did not confirm delivery. The bot never sends twice, so nobody gets two messages.",
+     "action": "Open your DMs, check the chats with @yana_qa and @vera.notes, then mark them “Checked”.",
+     "link": "#/people?status=uncertain",
+     "link_text": "Show these people"
+    },
+    {
+     "key": "expiring",
+     "level": "info",
+     "title": "23 people are waiting for the link",
+     "text": "The queue moves at the allowed 60 messages an hour. Everyone will make it: the earliest 7-day window closes in 6 days 23 hours.",
+     "action": "Nothing to do.",
+     "link": "#/people?status=pending",
+     "link_text": "Show the queue"
+    }
+   ]
+  },
+  "ok": {
+   "label": "All good",
+   "service": {
+    "running": true,
+    "last_cycle_sec": 40,
+    "sending": true,
+    "budget": "unlimited",
+    "armed_n": "unlimited",
+    "account_hold": null,
+    "send_hold": null,
+    "meta_ok": true,
+    "telegram_ok": true
+   },
+   "problems": []
+  },
+  "blocked": {
+   "label": "Instagram blocked access",
+   "service": {
+    "running": true,
+    "last_cycle_sec": 55,
+    "sending": true,
+    "budget": 38,
+    "armed_n": 50,
+    "account_hold": "blocked",
+    "send_hold": null,
+    "meta_ok": false,
+    "telegram_ok": true
+   },
+   "problems": [
+    {
+     "key": "hold:account",
+     "level": "bad",
+     "title": "Instagram is rejecting the account's requests",
+     "text": "Meta answers “API access blocked”. The bot reads nothing and messages nobody; it checks access every 30 minutes and carries on once access is back.",
+     "action": "Go to developers.facebook.com and confirm your developer account (Confirm Account).",
+     "link": "#/settings",
+     "link_text": "Open settings"
+    },
+    {
+     "key": "waiting",
+     "level": "warn",
+     "title": "23 people are waiting and will not get the link yet",
+     "text": "The earliest 7-day window closes in 2 days 4 hours. After that Instagram will not allow a message.",
+     "action": "Restore access to Meta before then.",
+     "link": "#/people?status=pending",
+     "link_text": "Show the queue"
+    }
+   ]
+  }
+ },
+ "automations": [
+  {
+   "id": "arena",
+   "name": "Arena Skill",
+   "media_id": "17900000000000101",
+   "permalink": "https://www.instagram.com/reel/demo-arena/",
+   "active": true,
+   "caption": "How to get Claude's best answer out of many tries. Comment “Arena” and I'll send the link",
+   "posted_at": "2026-09-30T09:05:00Z",
+   "hue": 262,
+   "keywords": [
+    "arena"
+   ],
+   "also_match": [
+    "areena",
+    "areba",
+    "arrna"
+   ],
+   "max_words": 5,
+   "link": "https://github.com/Jakeschincariol/arena-skill",
+   "text": "{greeting} Here's Arena Skill for Claude Code 👇 Send the link to Claude and it installs itself. Then type /arena and your task, and you get the best answer out of many tries.\n\nI'm just starting a blog about Claude and AI, follow along, there's a lot more coming 🙌",
+   "stats": {
+    "comments": 1842,
+    "asked": 1163,
+    "sent": 1068,
+    "waiting": 23,
+    "expired": 41,
+    "uncertain": 2,
+    "refused": 9,
+    "already": 20,
+    "public_done": 1051,
+    "replied": 214,
+    "clicked": 612
+   },
+   "ab": {
+    "enabled": true,
+    "started_at": "2026-09-30T15:05:00Z"
+   },
+   "variants": [
+    {
+     "id": "A",
+     "share": 50,
+     "sent": 536,
+     "replied": 91,
+     "clicked": 281,
+     "text": "{greeting} Here's Arena Skill for Claude Code 👇 Send the link to Claude and it installs itself. Then type /arena and your task, and you get the best answer out of many tries.\n\nI'm just starting a blog about Claude and AI, follow along, there's a lot more coming 🙌"
+    },
+    {
+     "id": "B",
+     "share": 50,
+     "sent": 532,
+     "replied": 123,
+     "clicked": 331,
+     "text": "{greeting} Here's Arena Skill 👇 Just send this link to Claude.\n\nTell me later if you got it running? I'd really like to know 🙌"
+    }
+   ],
+   "modified_at": "2026-10-05T08:05:00Z"
+  },
+  {
+   "id": "guide",
+   "name": "Claude Code guide",
+   "media_id": "18099120455123407",
+   "permalink": "https://www.instagram.com/reel/demo-guide/",
+   "active": true,
+   "caption": "5 Claude Code settings that save hours. Comment “Guide” and I'll send the list",
+   "posted_at": "2026-10-04T06:05:00Z",
+   "hue": 205,
+   "keywords": [
+    "guide"
+   ],
+   "also_match": [
+    "giude",
+    "gude"
+   ],
+   "max_words": 5,
+   "link": "https://t.me/example_channel",
+   "text": "{greeting} Here's the Claude Code setup guide 👇 Five steps, about ten minutes.\n\nIf it helps, reply with a couple of words, it means a lot 🙌",
+   "stats": {
+    "comments": 611,
+    "asked": 449,
+    "sent": 444,
+    "waiting": 0,
+    "expired": 0,
+    "uncertain": 0,
+    "refused": 3,
+    "already": 2,
+    "public_done": 440,
+    "replied": 58,
+    "clicked": 301
+   },
+   "ab": {
+    "enabled": false
+   },
+   "variants": [
+    {
+     "id": "A",
+     "share": 100,
+     "sent": 444,
+     "replied": 58,
+     "clicked": 301,
+     "text": "{greeting} Here's the Claude Code setup guide 👇 Five steps, about ten minutes.\n\nIf it helps, reply with a couple of words, it means a lot 🙌"
+    }
+   ],
+   "modified_at": "2026-10-04T07:05:00Z"
+  },
+  {
+   "id": "prompts",
+   "name": "Prompt templates",
+   "media_id": "18064410233987120",
+   "permalink": "https://www.instagram.com/reel/demo-prompts/",
+   "active": false,
+   "caption": "10 prompts I use every day. Comment “Template”",
+   "posted_at": "2026-09-17T11:05:00Z",
+   "hue": 24,
+   "keywords": [
+    "template",
+    "templates"
+   ],
+   "also_match": [
+    "templte"
+   ],
+   "max_words": 5,
+   "link": "https://example.com/prompt-templates",
+   "text": "{greeting} Here are the prompt templates 👇",
+   "stats": {
+    "comments": 96,
+    "asked": 36,
+    "sent": 0,
+    "waiting": 0,
+    "expired": 36,
+    "uncertain": 0,
+    "refused": 0,
+    "already": 0,
+    "public_done": 0,
+    "replied": 0,
+    "clicked": 0
+   },
+   "ab": {
+    "enabled": false
+   },
+   "variants": [
+    {
+     "id": "A",
+     "share": 100,
+     "sent": 0,
+     "replied": 0,
+     "clicked": 0,
+     "text": "{greeting} Here are the prompt templates 👇"
+    }
+   ],
+   "modified_at": "2026-09-24T11:05:00Z"
+  }
+ ],
+ "people": [
+  {
+   "comment_id": "1790663995417105",
+   "username": "katya.ux",
+   "automation": "arena",
+   "text": "ARENA!!",
+   "status": "pending",
+   "reason": "",
+   "ts": "2026-10-06T11:03:00Z",
+   "variant": "B"
+  },
+  {
+   "comment_id": "1790656123617081",
+   "username": "dima_dev",
+   "automation": "arena",
+   "text": "Arena",
+   "status": "pending",
+   "reason": "",
+   "ts": "2026-10-06T11:01:00Z",
+   "variant": "A"
+  },
+  {
+   "comment_id": "1790651008064472",
+   "username": "anna.codes",
+   "automation": "arena",
+   "text": "Arena 🙏",
+   "status": "pending",
+   "reason": "",
+   "ts": "2026-10-06T10:58:00Z",
+   "variant": "B"
+  },
+  {
+   "comment_id": "1790464452764141",
+   "username": "max.prompt",
+   "automation": "arena",
+   "text": "areena",
+   "status": "pending",
+   "reason": "",
+   "ts": "2026-10-06T10:56:00Z",
+   "variant": "A"
+  },
+  {
+   "comment_id": "1790273693441264",
+   "username": "lena_ai",
+   "automation": "arena",
+   "text": "arena 🔥",
+   "status": "pending",
+   "reason": "",
+   "ts": "2026-10-06T10:52:00Z",
+   "variant": "A"
+  },
+  {
+   "comment_id": "1790430238795716",
+   "username": "igor.builds",
+   "automation": "arena",
+   "text": "Arena 🙏",
+   "status": "pending",
+   "reason": "",
+   "ts": "2026-10-06T10:49:00Z",
+   "variant": "B"
+  },
+  {
+   "comment_id": "1790783916101109",
+   "username": "sasha_ml",
+   "automation": "arena",
+   "text": "Arena",
+   "status": "pending",
+   "reason": "",
+   "ts": "2026-10-06T10:44:00Z",
+   "variant": "A"
+  },
+  {
+   "comment_id": "1790543312041763",
+   "username": "olya.design",
+   "automation": "arena",
+   "text": "areena",
+   "status": "pending",
+   "reason": "",
+   "ts": "2026-10-06T10:39:00Z",
+   "variant": "A"
+  },
+  {
+   "comment_id": "1790127152984155",
+   "username": "petr.script",
+   "automation": "arena",
+   "text": "I want arena",
+   "status": "pending",
+   "reason": "",
+   "ts": "2026-10-06T10:34:00Z",
+   "variant": "B"
+  },
+  {
+   "comment_id": "1790105404745109",
+   "username": "nika_data",
+   "automation": "arena",
+   "text": "Arena",
+   "status": "pending",
+   "reason": "",
+   "ts": "2026-10-06T10:27:00Z",
+   "variant": "A"
+  },
+  {
+   "comment_id": "1790328585888279",
+   "username": "igor.builds",
+   "automation": "arena",
+   "text": "ARENA!!",
+   "status": "sent",
+   "reason": "",
+   "ts": "2026-10-06T10:21:00Z",
+   "variant": "A",
+   "clicked": false,
+   "replied": false,
+   "dm_at": "2026-10-06T10:34:43Z",
+   "public_at": "2026-10-06T10:34:45Z",
+   "public_phrase": "Got it! Check your DMs 💬"
+  },
+  {
+   "comment_id": "1790748471855427",
+   "username": "olya.design",
+   "automation": "arena",
+   "text": "Arena, thanks for the content",
+   "status": "sent",
+   "reason": "",
+   "ts": "2026-10-06T10:13:00Z",
+   "variant": "B",
+   "clicked": false,
+   "replied": false,
+   "dm_at": "2026-10-06T10:16:32Z",
+   "public_at": "2026-10-06T10:16:34Z",
+   "public_phrase": "Here you go, check your inbox 🤝"
+  },
+  {
+   "comment_id": "1790900013010421",
+   "username": "liza.study",
+   "automation": "arena",
+   "text": "arena 🔥",
+   "status": "dup_user",
+   "reason": "",
+   "ts": "2026-10-06T10:07:00Z",
+   "variant": "B"
+  },
+  {
+   "comment_id": "1790431626973448",
+   "username": "timur_py",
+   "automation": "guide",
+   "text": "Guide",
+   "status": "sent",
+   "reason": "",
+   "ts": "2026-10-06T10:04:00Z",
+   "variant": "A",
+   "clicked": false,
+   "replied": false,
+   "dm_at": "2026-10-06T10:17:58Z",
+   "public_at": "2026-10-06T10:18:00Z",
+   "public_phrase": "Sent you a DM 📩"
+  },
+  {
+   "comment_id": "1790716164455114",
+   "username": "mila.pm",
+   "automation": "arena",
+   "text": "Arena 🙏",
+   "status": "sent",
+   "reason": "",
+   "ts": "2026-10-06T09:50:00Z",
+   "variant": "B",
+   "clicked": false,
+   "replied": true,
+   "dm_at": "2026-10-06T09:54:26Z",
+   "public_at": "2026-10-06T09:54:28Z",
+   "public_phrase": "Sent you a DM 📩"
+  },
+  {
+   "comment_id": "1790157964981613",
+   "username": "gleb.ops",
+   "automation": "arena",
+   "text": "arena 🔥",
+   "status": "sent",
+   "reason": "",
+   "ts": "2026-10-06T09:35:00Z",
+   "variant": "A",
+   "clicked": false,
+   "replied": false,
+   "dm_at": "2026-10-06T09:36:46Z",
+   "public_at": "2026-10-06T09:36:48Z",
+   "public_phrase": "Sent! It may be in Message requests 🙌"
+  },
+  {
+   "comment_id": "1790596315548922",
+   "username": "yana_qa",
+   "automation": "arena",
+   "text": "Arena",
+   "status": "uncertain",
+   "reason": "timeout",
+   "ts": "2026-10-06T09:29:00Z",
+   "variant": "A"
+  },
+  {
+   "comment_id": "1790454948834612",
+   "username": "yana_qa",
+   "automation": "arena",
+   "text": "I want arena",
+   "status": "sent",
+   "reason": "",
+   "ts": "2026-10-06T09:21:00Z",
+   "variant": "A",
+   "clicked": false,
+   "replied": false,
+   "dm_at": "2026-10-06T09:26:52Z",
+   "public_at": "2026-10-06T09:26:54Z",
+   "public_phrase": "Check your DMs 🔥"
+  },
+  {
+   "comment_id": "1790863389299788",
+   "username": "artur.js",
+   "automation": "arena",
+   "text": "I want arena",
+   "status": "sent",
+   "reason": "",
+   "ts": "2026-10-06T09:04:00Z",
+   "variant": "A",
+   "clicked": true,
+   "replied": false,
+   "dm_at": "2026-10-06T09:12:44Z",
+   "public_at": "2026-10-06T09:12:46Z",
+   "public_phrase": "Got it! Check your DMs 💬"
+  },
+  {
+   "comment_id": "1790704014734323",
+   "username": "zoya_rnd",
+   "automation": "arena",
+   "text": "Arena 🙏",
+   "status": "sent",
+   "reason": "",
+   "ts": "2026-10-06T08:45:00Z",
+   "variant": "B",
+   "clicked": false,
+   "replied": false,
+   "dm_at": "2026-10-06T08:52:28Z",
+   "public_at": "2026-10-06T08:52:30Z",
+   "public_phrase": "Just messaged you 🚀"
+  },
+  {
+   "comment_id": "1790684740600384",
+   "username": "kirill.ai",
+   "automation": "guide",
+   "text": "Guide",
+   "status": "sent",
+   "reason": "",
+   "ts": "2026-10-06T08:22:00Z",
+   "variant": "A",
+   "clicked": true,
+   "replied": true,
+   "dm_at": "2026-10-06T08:36:51Z",
+   "public_at": "2026-10-06T08:36:53Z",
+   "public_phrase": "Check your DMs 🔥"
+  },
+  {
+   "comment_id": "1790328837804331",
+   "username": "dasha_ux",
+   "automation": "arena",
+   "text": "Arena, thanks for the content",
+   "status": "sent",
+   "reason": "",
+   "ts": "2026-10-06T07:57:00Z",
+   "variant": "B",
+   "clicked": true,
+   "replied": false,
+   "dm_at": "2026-10-06T08:00:52Z",
+   "public_at": "2026-10-06T08:00:54Z",
+   "public_phrase": "Just messaged you 🚀"
+  },
+  {
+   "comment_id": "1790176748926230",
+   "username": "gleb.ops",
+   "automation": "arena",
+   "text": "I want arena",
+   "status": "refused",
+   "reason": "user_unavailable",
+   "ts": "2026-10-06T07:40:00Z",
+   "variant": "A"
+  },
+  {
+   "comment_id": "1790209160768268",
+   "username": "egor.cloud",
+   "automation": "arena",
+   "text": "ARENA!!",
+   "status": "sent",
+   "reason": "",
+   "ts": "2026-10-06T07:30:00Z",
+   "variant": "A",
+   "clicked": true,
+   "replied": true,
+   "dm_at": "2026-10-06T07:41:02Z",
+   "public_at": "2026-10-06T07:41:04Z",
+   "public_phrase": "The link is waiting in your DMs ⚡️"
+  },
+  {
+   "comment_id": "1790711193926629",
+   "username": "polina_no_code",
+   "automation": "arena",
+   "text": "Arena 🙏",
+   "status": "sent",
+   "reason": "",
+   "ts": "2026-10-06T06:58:00Z",
+   "variant": "B",
+   "clicked": false,
+   "replied": false,
+   "dm_at": "2026-10-06T07:07:49Z",
+   "public_at": "2026-10-06T07:07:51Z",
+   "public_phrase": "It's in your DMs 👀"
+  },
+  {
+   "comment_id": "1790897429808854",
+   "username": "stas.bot",
+   "automation": "arena",
+   "text": "I want arena",
+   "status": "sent",
+   "reason": "",
+   "ts": "2026-10-06T06:15:00Z",
+   "variant": "A",
+   "clicked": false,
+   "replied": false,
+   "dm_at": "2026-10-06T06:23:27Z",
+   "public_at": "2026-10-06T06:23:29Z",
+   "public_phrase": "Sent! If you can't see it, look in Message requests 📬"
+  },
+  {
+   "comment_id": "1790563977648081",
+   "username": "fedya_tools",
+   "automation": "arena",
+   "text": "arena 🔥",
+   "status": "already",
+   "reason": "owner_replied",
+   "ts": "2026-10-06T05:35:00Z",
+   "variant": "B"
+  },
+  {
+   "comment_id": "1790682071676798",
+   "username": "ira_marketing",
+   "automation": "arena",
+   "text": "Arena",
+   "status": "sent",
+   "reason": "",
+   "ts": "2026-10-06T05:25:00Z",
+   "variant": "A",
+   "clicked": false,
+   "replied": false,
+   "dm_at": "2026-10-06T05:37:49Z",
+   "public_at": "2026-10-06T05:37:51Z",
+   "public_phrase": "Got it! Check your DMs 💬"
+  },
+  {
+   "comment_id": "1790231296913074",
+   "username": "vlad.neuro",
+   "automation": "guide",
+   "text": "giude",
+   "status": "sent",
+   "reason": "",
+   "ts": "2026-10-06T04:15:00Z",
+   "variant": "A",
+   "clicked": true,
+   "replied": false,
+   "dm_at": "2026-10-06T04:17:04Z",
+   "public_at": "2026-10-06T04:17:06Z",
+   "public_phrase": "Check your DMs 🔥"
+  },
+  {
+   "comment_id": "1790181552358158",
+   "username": "tanya.school",
+   "automation": "arena",
+   "text": "ARENA!!",
+   "status": "sent",
+   "reason": "",
+   "ts": "2026-10-06T03:05:00Z",
+   "variant": "A",
+   "clicked": true,
+   "replied": false,
+   "dm_at": "2026-10-06T03:09:18Z",
+   "public_at": "2026-10-06T03:09:20Z",
+   "public_phrase": "Got it! Check your DMs 💬"
+  },
+  {
+   "comment_id": "1790224082065606",
+   "username": "misha_startup",
+   "automation": "arena",
+   "text": "Arena",
+   "status": "sent",
+   "reason": "",
+   "ts": "2026-10-06T01:45:00Z",
+   "variant": "A",
+   "clicked": true,
+   "replied": false,
+   "dm_at": "2026-10-06T01:48:04Z",
+   "public_at": "2026-10-06T01:48:06Z",
+   "public_phrase": "Here you go, check your inbox 🤝"
+  },
+  {
+   "comment_id": "1790201894725704",
+   "username": "alina.soft",
+   "automation": "arena",
+   "text": "arena 🔥",
+   "status": "sent",
+   "reason": "",
+   "ts": "2026-10-06T00:10:00Z",
+   "variant": "A",
+   "clicked": true,
+   "replied": false,
+   "dm_at": "2026-10-06T00:15:05Z",
+   "public_at": "2026-10-06T00:15:07Z",
+   "public_phrase": "Check your DMs 🔥"
+  },
+  {
+   "comment_id": "1790472395816245",
+   "username": "pasha_auto",
+   "automation": "arena",
+   "text": "ARENA!!",
+   "status": "dup_user",
+   "reason": "",
+   "ts": "2026-10-05T23:25:00Z",
+   "variant": "B"
+  },
+  {
+   "comment_id": "1790256043814758",
+   "username": "boris_labs",
+   "automation": "guide",
+   "text": "guide 🙌",
+   "status": "sent",
+   "reason": "",
+   "ts": "2026-10-05T22:25:00Z",
+   "variant": "A",
+   "clicked": true,
+   "replied": false,
+   "dm_at": "2026-10-05T22:26:21Z",
+   "public_at": "2026-10-05T22:26:23Z",
+   "public_phrase": "Check your DMs 🔥"
+  },
+  {
+   "comment_id": "1790606000580151",
+   "username": "sonya.dev",
+   "automation": "guide",
+   "text": "guide, really need it",
+   "status": "sent",
+   "reason": "",
+   "ts": "2026-10-05T20:05:00Z",
+   "variant": "A",
+   "clicked": true,
+   "replied": false,
+   "dm_at": "2026-10-05T20:16:05Z",
+   "public_at": "2026-10-05T20:16:07Z",
+   "public_phrase": "The link is waiting in your DMs ⚡️"
+  },
+  {
+   "comment_id": "1790129907606807",
+   "username": "eva.design",
+   "automation": "arena",
+   "text": "arena???? where is the course link and how much is it",
+   "status": "near",
+   "reason": "longer than 5 words",
+   "ts": "2026-10-05T13:45:00Z",
+   "variant": "A"
+  },
+  {
+   "comment_id": "1790926791952621",
+   "username": "vera.notes",
+   "automation": "arena",
+   "text": "Arena",
+   "status": "uncertain",
+   "reason": "http_5xx",
+   "ts": "2026-10-05T13:05:00Z",
+   "variant": "A"
+  },
+  {
+   "comment_id": "1790700602981278",
+   "username": "marta.ai",
+   "automation": "arena",
+   "text": "arina",
+   "status": "near",
+   "reason": "1 letter",
+   "ts": "2026-10-05T11:21:00Z",
+   "variant": "A"
+  },
+  {
+   "comment_id": "1790232678410442",
+   "username": "nastya.prod",
+   "automation": "guide",
+   "text": "Guide",
+   "status": "refused",
+   "reason": "user_unavailable",
+   "ts": "2026-10-05T09:55:00Z",
+   "variant": "A"
+  },
+  {
+   "comment_id": "1790410067482126",
+   "username": "tolya_no_sleep",
+   "automation": "arena",
+   "text": "arema",
+   "status": "near",
+   "reason": "1 letter",
+   "ts": "2026-10-05T03:08:00Z",
+   "variant": "A"
+  },
+  {
+   "comment_id": "1790510498744587",
+   "username": "inna.books",
+   "automation": "arena",
+   "text": "arena please",
+   "status": "expired",
+   "reason": "window",
+   "ts": "2026-09-29T08:41:00Z",
+   "variant": "A"
+  },
+  {
+   "comment_id": "1790987837463939",
+   "username": "yura_stack",
+   "automation": "arena",
+   "text": "arena pls",
+   "status": "expired",
+   "reason": "window",
+   "ts": "2026-09-29T01:29:00Z",
+   "variant": "A"
+  },
+  {
+   "comment_id": "1790866655601660",
+   "username": "kris.motion",
+   "automation": "arena",
+   "text": "arena 🔥",
+   "status": "expired",
+   "reason": "window",
+   "ts": "2026-09-28T13:29:00Z",
+   "variant": "A"
+  },
+  {
+   "comment_id": "1790598218696628",
+   "username": "denis_edu",
+   "automation": "arena",
+   "text": "Arena, thanks for the content",
+   "status": "expired",
+   "reason": "window",
+   "ts": "2026-09-27T23:05:00Z",
+   "variant": "A"
+  }
+ ],
+ "hours": [
+  {
+   "hour": "2026-10-05T12:00:00Z",
+   "asked": 55,
+   "sent": 51
+  },
+  {
+   "hour": "2026-10-05T13:00:00Z",
+   "asked": 36,
+   "sent": 34
+  },
+  {
+   "hour": "2026-10-05T14:00:00Z",
+   "asked": 57,
+   "sent": 47
+  },
+  {
+   "hour": "2026-10-05T15:00:00Z",
+   "asked": 43,
+   "sent": 36
+  },
+  {
+   "hour": "2026-10-05T16:00:00Z",
+   "asked": 50,
+   "sent": 43
+  },
+  {
+   "hour": "2026-10-05T17:00:00Z",
+   "asked": 42,
+   "sent": 36
+  },
+  {
+   "hour": "2026-10-05T18:00:00Z",
+   "asked": 25,
+   "sent": 21
+  },
+  {
+   "hour": "2026-10-05T19:00:00Z",
+   "asked": 18,
+   "sent": 15
+  },
+  {
+   "hour": "2026-10-05T20:00:00Z",
+   "asked": 39,
+   "sent": 35
+  },
+  {
+   "hour": "2026-10-05T21:00:00Z",
+   "asked": 25,
+   "sent": 23
+  },
+  {
+   "hour": "2026-10-05T22:00:00Z",
+   "asked": 5,
+   "sent": 4
+  },
+  {
+   "hour": "2026-10-05T23:00:00Z",
+   "asked": 4,
+   "sent": 3
+  },
+  {
+   "hour": "2026-10-06T00:00:00Z",
+   "asked": 3,
+   "sent": 2
+  },
+  {
+   "hour": "2026-10-06T01:00:00Z",
+   "asked": 9,
+   "sent": 7
+  },
+  {
+   "hour": "2026-10-06T02:00:00Z",
+   "asked": 8,
+   "sent": 7
+  },
+  {
+   "hour": "2026-10-06T03:00:00Z",
+   "asked": 2,
+   "sent": 1
+  },
+  {
+   "hour": "2026-10-06T04:00:00Z",
+   "asked": 4,
+   "sent": 3
+  },
+  {
+   "hour": "2026-10-06T05:00:00Z",
+   "asked": 17,
+   "sent": 15
+  },
+  {
+   "hour": "2026-10-06T06:00:00Z",
+   "asked": 25,
+   "sent": 22
+  },
+  {
+   "hour": "2026-10-06T07:00:00Z",
+   "asked": 30,
+   "sent": 26
+  },
+  {
+   "hour": "2026-10-06T08:00:00Z",
+   "asked": 31,
+   "sent": 25
+  },
+  {
+   "hour": "2026-10-06T09:00:00Z",
+   "asked": 51,
+   "sent": 50
+  },
+  {
+   "hour": "2026-10-06T10:00:00Z",
+   "asked": 35,
+   "sent": 33
+  },
+  {
+   "hour": "2026-10-06T11:00:00Z",
+   "asked": 44,
+   "sent": 40
+  }
+ ],
+ "days": [
+  {
+   "day": "2026-09-30T00:00:00Z",
+   "asked": 212,
+   "sent": 0,
+   "replied": 0,
+   "clicked": 0
+  },
+  {
+   "day": "2026-10-01T00:00:00Z",
+   "asked": 318,
+   "sent": 1,
+   "replied": 0,
+   "clicked": 1
+  },
+  {
+   "day": "2026-10-02T00:00:00Z",
+   "asked": 297,
+   "sent": 10,
+   "replied": 2,
+   "clicked": 6
+  },
+  {
+   "day": "2026-10-03T00:00:00Z",
+   "asked": 254,
+   "sent": 248,
+   "replied": 41,
+   "clicked": 139
+  },
+  {
+   "day": "2026-10-04T00:00:00Z",
+   "asked": 231,
+   "sent": 402,
+   "replied": 77,
+   "clicked": 236
+  },
+  {
+   "day": "2026-10-05T00:00:00Z",
+   "asked": 203,
+   "sent": 439,
+   "replied": 83,
+   "clicked": 262
+  },
+  {
+   "day": "2026-10-06T00:00:00Z",
+   "asked": 133,
+   "sent": 412,
+   "replied": 69,
+   "clicked": 269
+  }
+ ],
+ "activity": [
+  {
+   "at": "2026-10-06T11:04:00Z",
+   "kind": "dm",
+   "level": "ok",
+   "text": "Message sent to @igor.builds",
+   "automation": "arena"
+  },
+  {
+   "at": "2026-10-06T11:04:00Z",
+   "kind": "public",
+   "level": "ok",
+   "text": "Public reply under @igor.builds's comment: “Check your DMs 🔥”",
+   "automation": "arena"
+  },
+  {
+   "at": "2026-10-06T11:02:00Z",
+   "kind": "dm",
+   "level": "ok",
+   "text": "Message sent to @olya.design",
+   "automation": "arena"
+  },
+  {
+   "at": "2026-10-06T11:02:00Z",
+   "kind": "public",
+   "level": "ok",
+   "text": "Public reply under @olya.design's comment: “Sent you a DM 📩”",
+   "automation": "arena"
+  },
+  {
+   "at": "2026-10-06T10:59:00Z",
+   "kind": "collect",
+   "level": "info",
+   "text": "Read comments: 14 new, 9 with the keyword",
+   "automation": "arena"
+  },
+  {
+   "at": "2026-10-06T10:34:00Z",
+   "kind": "collect",
+   "level": "info",
+   "text": "Read comments: 3 new, 2 with the keyword",
+   "automation": "guide"
+  },
+  {
+   "at": "2026-10-06T09:29:00Z",
+   "kind": "dm",
+   "level": "warn",
+   "text": "@yana_qa: Instagram did not answer in time. The message may or may not have arrived, and the bot will not send it twice",
+   "automation": "arena"
+  },
+  {
+   "at": "2026-10-06T09:28:00Z",
+   "kind": "system",
+   "level": "warn",
+   "text": "Sending paused for 20 minutes after an unclear answer from Instagram"
+  },
+  {
+   "at": "2026-10-06T09:08:00Z",
+   "kind": "system",
+   "level": "ok",
+   "text": "Sending resumed"
+  },
+  {
+   "at": "2026-10-06T07:40:00Z",
+   "kind": "dm",
+   "level": "bad",
+   "text": "@gleb.ops: Instagram rejected the message: this person has closed their DMs",
+   "automation": "arena"
+  },
+  {
+   "at": "2026-10-06T06:00:00Z",
+   "kind": "alert",
+   "level": "info",
+   "text": "Daily summary sent to Telegram"
+  },
+  {
+   "at": "2026-10-06T05:35:00Z",
+   "kind": "system",
+   "level": "ok",
+   "text": "You allowed 50 sends (launch step 3 of 4)"
+  },
+  {
+   "at": "2026-10-06T05:05:00Z",
+   "kind": "system",
+   "level": "ok",
+   "text": "Step of 10 sends done: 10 sent, 0 refused"
+  },
+  {
+   "at": "2026-10-06T03:45:00Z",
+   "kind": "system",
+   "level": "ok",
+   "text": "You allowed 10 sends (launch step 2 of 4)"
+  },
+  {
+   "at": "2026-10-05T09:05:00Z",
+   "kind": "alert",
+   "level": "bad",
+   "text": "4 people missed the link: 7 days have passed since their comment"
+  },
+  {
+   "at": "2026-10-05T08:05:00Z",
+   "kind": "system",
+   "level": "info",
+   "text": "Settings of “Arena Skill” changed: typo “arrna” added"
+  },
+  {
+   "at": "2026-10-05T08:04:00Z",
+   "kind": "system",
+   "level": "warn",
+   "text": "Settings changed: sending is stopped until you allow it again"
+  },
+  {
+   "at": "2026-10-04T06:05:00Z",
+   "kind": "system",
+   "level": "ok",
+   "text": "Automation “Claude Code guide” added"
+  }
+ ],
+ "telegram": [
+  {
+   "at": "2026-10-06T09:29:00Z",
+   "text": "⚠ Needs a check: 1 person\n@yana_qa (Arena Skill): Instagram did not answer in time, the message may not have arrived.\nWhat to do: open your DMs and see if the message is there. The bot will not send it twice."
+  },
+  {
+   "at": "2026-10-06T09:28:00Z",
+   "text": "⏸ Sending paused for 20 minutes: unclear answer from Instagram. It resumes by itself."
+  },
+  {
+   "at": "2026-10-06T09:08:00Z",
+   "text": "✓ Sending resumed"
+  },
+  {
+   "at": "2026-10-06T06:00:00Z",
+   "text": "Daily summary\nSent: 412 · in queue: 23 · missed: 0\nArena Skill: 371 · Claude Code guide: 41\nFollowers: 12,480 (+212 today)"
+  },
+  {
+   "at": "2026-10-06T05:05:00Z",
+   "text": "✓ Step of 10 sends done: 10 sent, 0 refused.\nAllow the next step to continue."
+  },
+  {
+   "at": "2026-10-05T09:05:00Z",
+   "text": "⚠ 4 people missed the link: 7 days have passed since their comment. Missed in total: 41."
+  }
+ ]
+}

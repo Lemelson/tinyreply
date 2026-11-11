@@ -112,7 +112,7 @@ def hero():
     b.append(text(64, 252, "A self-hosted Instagram autoresponder that fits", 22, "#c8bddc"))
     b.append(text(64, 282, "on the smallest VPS, built on Meta's official API.", 22, "#c8bddc"))
     chips = [("cpu", "32 MB", "RAM on a live server"), ("zap", "0", "dependencies"),
-             ("shield-check", "0", "open ports"), ("check", "1,089", "tests")]
+             ("shield-check", "0", "open ports by default"), ("check", "1,147", "tests")]
     x = 64
     for name, big, small in chips:
         w = 158

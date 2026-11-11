@@ -198,7 +198,7 @@ class Core(unittest.TestCase):
         old = clock.iso(self.now - timedelta(days=8))
         self.page([self.listed(timestamp=old)])
         row = store.comment(self.conn, "c")
-        self.assertEqual((row["status"], row["reason"], row["ts"]), ("expired", "window", old))
+        self.assertEqual((row["status"], row["reason"], row["ts"]), ("expired", "too_old", old))
         self.assertEqual(store.claim_dm(self.conn, "c", self.cfg, ME).kind, "skip")
 
     def test_f03_null_text_repair_preserves_the_original_usable_timestamp(self):
@@ -307,7 +307,7 @@ class Core(unittest.TestCase):
                 self.fill_outbox()
                 with self.assertRaises(Exception):
                     self.bot._lost_people()
-                self.assertIsNone(store.kv_get(self.conn, "told_" + status))
+                self.assertIn(store.kv_get(self.conn, {"expired": "told_lost", "uncertain": "told_uncertain"}[status]), (None, "0"))
                 self.conn.execute("PRAGMA max_page_count=100000")
                 self.bot._lost_people()
                 self.bot._lost_people()
@@ -364,7 +364,7 @@ class Core(unittest.TestCase):
         self.bot._lost_people()
         self.bot._lost_people()
         self.assertEqual(len(events), 1)
-        self.assertEqual(store.kv_get(self.conn, "told_expired"), "1")
+        self.assertEqual(store.kv_get(self.conn, "told_lost"), "1")
 
     def test_f30_constraint_rollback_keeps_outer_transaction_healthy(self):
         with store.tx(self.conn):

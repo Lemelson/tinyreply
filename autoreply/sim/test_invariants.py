@@ -141,7 +141,7 @@ class Case:
         if text is None:
             late = comment is not None and T0 + at - comment["ts"] > CONFIG["late_after_minutes"] * 60
             link = OTHER_LINK if comment and comment["media_id"] == OTHER_MEDIA else LINK
-            text = f"{LATE_GREETING if late else GREETING} Держи ссылку 👇\n\n{link}\nПодписаться: {PROFILE}"
+            text = f"{LATE_GREETING if late else GREETING} Держи ссылку 👇\n\n{link}"
         body = {"recipient": {"comment_id": comment_id}, "message": {"text": text}}
         record = self.request("dm", at, target=comment_id, status=status, response=response, method="POST",
                               body=body, delivered=delivered, **more)

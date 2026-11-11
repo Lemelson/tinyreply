@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#f4f2ee">
+<title>Автоответ</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23191918'/%3E%3Cpath d='M9 11.5h14v8.2h-7.4L11.4 23v-3.3H9z' fill='none' stroke='%23fff' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body>
+<a class="skip" href="#main" data-i18n="skip">К содержимому</a>
+
+<div class="app">
+  <header class="topbar">
+    <button class="icon-btn" type="button" data-action="menu" aria-label="Открыть меню" data-i18n-aria="menu" aria-controls="side" aria-expanded="false">
+      <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 6h14M3 10h14M3 14h14"/></svg>
+    </button>
+    <span class="topbar-title" id="topbar-title">Обзор</span>
+  </header>
+
+  <aside class="side" id="side" aria-label="Разделы" data-i18n-aria="sections">
+    <div class="side-account">
+      <span class="avatar avatar-ring" aria-hidden="true"><span id="acc-initial">A</span></span>
+      <span class="side-account-text">
+        <span class="side-account-name" id="acc-name">your_account</span>
+        <span class="side-account-sub" data-i18n="sub">Instagram · автоответ</span>
+      </span>
+    </div>
+    <nav class="nav" id="nav"></nav>
+    <div class="side-foot">
+      <a class="side-status" href="#/" id="side-status"></a>
+      <div class="theme-switch" role="group" aria-label="Тема" data-i18n-aria="theme">
+        <button type="button" data-action="theme" data-theme="auto" aria-pressed="true" data-i18n="theme-auto">Авто</button>
+        <button type="button" data-action="theme" data-theme="light" aria-pressed="false" data-i18n="theme-light">Светлая</button>
+        <button type="button" data-action="theme" data-theme="dark" aria-pressed="false" data-i18n="theme-dark">Тёмная</button>
+      </div>
+      <div class="theme-switch lang-switch" role="group" aria-label="Язык интерфейса" data-i18n-aria="lang">
+        <button type="button" data-action="lang" data-lang="ru" lang="ru" aria-pressed="true">RU</button>
+        <button type="button" data-action="lang" data-lang="en" lang="en" aria-pressed="false">EN</button>
+      </div>
+      <label class="demo-switch" id="demo-switch">
+        <span class="demo-switch-label" data-i18n="demo">Демо · данные придуманы</span>
+        <select id="scenario" aria-label="Какое состояние показать" data-i18n-aria="scenario"></select>
+      </label>
+    </div>
+  </aside>
+  <div class="scrim" data-action="menu-close" hidden></div>
+
+  <main class="main" id="main" tabindex="-1">
+    <div class="page" id="view" aria-live="off"></div>
+  </main>
+</div>
+
+<div class="peek-scrim" data-action="peek-close" hidden></div>
+<aside class="peek" id="peek" aria-label="Подробности" data-i18n-aria="details" hidden></aside>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<noscript data-i18n="noscript"><p style="padding:24px;font:16px system-ui">Для панели нужен включённый JavaScript.</p></noscript>
+<script src="assets/app.js" defer></script>
+</body>
+</html>

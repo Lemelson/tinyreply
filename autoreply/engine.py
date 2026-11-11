@@ -13,7 +13,8 @@ kv keys written here beyond the list of SPEC 7 (report.py turns them into proble
     token_refresh_fails   refreshes in a row that failed (8.2, problem `token`)
     clock_problem         text while the clock guard is tripped (8.1, problem `clock`)
     env_problem           text while .env exists but cannot be read (3, problem `env`)
-    told_expired, told_uncertain   the counts the events of that name were last raised for (9)
+    told_lost, told_uncertain   the counts the events `expired` / `uncertain` were last raised for (9);
+                          `told_lost` replaced `told_expired` (r5), which also counted comments too old when first seen
 """
 import hashlib
 import json
@@ -176,6 +177,10 @@ class Engine:
         # rendered before any claim: nothing that can raise may stand between a claim and its POST (v1 issue K2)
         self._messages = {(reel.media_id, late): config.render(cfg, reel, late)
                           for reel in active for late in (False, True)}
+        # 14.3: the text first DM of every variant without a button, rendered before any claim as well
+        self._messages.update({(reel.media_id, late, variant.name): config.render(cfg, reel, late, variant)
+                               for reel in active if reel.flow for variant in reel.flow.variants
+                               if not variant.opening for late in (False, True)})
         me = {"user_id": store.kv_get(conn, "me_user_id"), "id": store.kv_get(conn, "me_id"),
               "username": store.kv_get(conn, "me_username")}
         self.me = me if all(me.values()) else None   # known only with all three fields (8.2)
@@ -230,12 +235,32 @@ class Engine:
             self._prepared = True
 
     def run(self):
-        """Cycle until the stop flag is set; the loop never ends on its own."""
+        """Cycle until the stop flag is set; the loop never ends on its own. Between cycles a tap on a button
+        (an unhandled inbound row, 14.1) wakes the funnel at once."""
         self.prepare_run()
         while not self._stopping():
             self.cycle()
-            clock.sleep(self.pause, self._should_stop, self._ping)
+            left, end = self.pause, clock.monotonic() + self.pause
+            while left > 0:
+                clock.sleep(left, lambda: self._stopping() or self._tap_waiting(), self._ping)
+                if self._stopping() or not self._tap_waiting():
+                    break
+                self.flow_cycle()   # woke for a tap: answer it, then sleep the rest of the pause
+                left = end - clock.monotonic()
         log("INFO", "stopped")
+
+    def _tap_waiting(self):
+        try:
+            return self.conn.execute("SELECT 1 FROM inbound WHERE handled_at IS NULL LIMIT 1").fetchone() is not None
+        except sqlite3.Error:
+            return False
+
+    def flow_cycle(self):
+        """14.1: the funnel's work between two cycles; failures are told like a cycle's (G5)."""
+        try:
+            self._speak_up(self._guarded(self._flow_work, "button taps are not answered"))
+        except _Stopped:
+            log("INFO", "stop_requested")
 
     def cycle(self, only=None, wait_for_startup=False):
         """One cycle; returns confirmed DMs. `only`: send-one target. One-shot commands may wait once at startup."""
@@ -310,6 +335,8 @@ class Engine:
         if not store.get_account_hold(self.conn):   # housekeeping; the hold blocks every call to Meta
             self._refresh_token()
             self._metric()
+        if only is None:   # send-one sends the named comment and nothing else
+            self._flow_work()
         store.kv_set_many(self.conn, {"last_cycle_ok_at": clock.iso(), "last_cycle_error": None})
         # after the stamp: the digest of a start's first cycle said "no cycle has finished, the service is down"
         self._daily()
@@ -522,7 +549,7 @@ class Engine:
             if status == "pending" and owner_replied:
                 status, reason = "already", "owner_replied"
             elif status == "pending" and store.window_closed(ts, now):
-                status, reason = "expired", "window"
+                status, reason = "expired", "too_old"   # nobody was let down: it was too old when first seen
             sweep.new_rows += store.add_comment(self.conn, comment_id, reel.media_id, user_id, username, text, ts,
                                                 status, reason)
             sweep.new_pending += status == "pending"
@@ -540,7 +567,7 @@ class Engine:
                 if owner_replied:
                     store.transition(self.conn, comment_id, "seen", "already", "owner_replied")
                 elif store.window_closed(stored_ts, now):
-                    store.transition(self.conn, comment_id, "seen", "expired", "window")
+                    store.transition(self.conn, comment_id, "seen", "expired", "too_old")
                 else:
                     store.transition(self.conn, comment_id, "seen", "pending")
                     sweep.rematched += 1
@@ -613,7 +640,8 @@ class Engine:
             attempts += 1
             self._startup_wait = False
             try:
-                result = self.client.send_dm(self.me["user_id"], comment_id, self._messages[media_id, claim.late])
+                result = self.client.send_dm(self.me["user_id"], comment_id,
+                                             self._first_message(media_id, comment_id, claim))
             finally:
                 # A client exception after the committed claim is unknown too. Keep D unless an answer
                 # proves response completion or that the request never connected.
@@ -628,6 +656,131 @@ class Engine:
                 break
             self._dms += 1
             self._public_reply(comment_id)
+
+    def _first_message(self, media_id, comment_id, claim):
+        """14.3: the message of a claimed first DM. Pure string work on what was rendered at start-up."""
+        reel = self.cfg.reel_by_media[media_id]
+        if not claim.variant:
+            return self._messages[media_id, claim.late]
+        variant = next(v for v in reel.flow.variants if v.name == claim.variant)
+        if variant.opening:
+            return config.render_opening(self.cfg, reel, claim.late, comment_id)
+        message = self._messages[media_id, claim.late, variant.name]
+        if claim.tokens:
+            message = {"text": message["text"].replace(reel.link, self.cfg.click_base + claim.tokens[0])}
+        return message
+
+    # ---------- the funnel (14.4, 14.5) ----------
+
+    def _flow_work(self):
+        """Taps, follow-ups and follow rechecks. Nothing here touches the first DM or its budget."""
+        if not (self.cfg.sending and self.me and any(reel.flow for reel in self.cfg.reels)) or \
+                store.get_account_hold(self.conn):
+            return
+        for row in self.conn.execute("SELECT * FROM inbound WHERE handled_at IS NULL ORDER BY id LIMIT 50").fetchall():
+            self._checkpoint()
+            result = self._inbound(row)
+            if result is None:          # a gate is closed: the tap waits, unless it waited too long
+                if clock.now() - clock.parse(row["received_at"]) >= timedelta(seconds=T["inbound_max_age"]):
+                    store.inbound_done(self.conn, row["id"], "window_passed")
+                    continue
+                break
+            store.inbound_done(self.conn, row["id"], result)
+            log("INFO", "inbound", id=row["id"], kind=row["kind"], result=result)
+        self._followups()
+        self._rechecks()
+
+    def _inbound(self, row):
+        """One webhook event (14.5). Returns how it ended, or None when it must wait for a closed gate."""
+        if row["kind"] == "message":
+            if row["sender"]:
+                store.flow_message(self.conn, row["sender"])
+            return "message"
+        payload = row["payload"] or ""
+        if row["kind"] != "postback" or payload[:2] not in ("g:", "d:") or not row["sender"]:
+            return "ignored"
+        comment_id = payload[2:]
+        tap = store.flow_tap(self.conn, comment_id, row["sender"])
+        if tap != "ok":
+            return tap
+        flow = store.flow_row(self.conn, comment_id)
+        if flow["state"] in ("linked", "stuck"):
+            return "already_" + flow["state"]
+        reel = self.cfg.reel_by_media.get(flow["media_id"])
+        if reel is None or reel.flow is None:
+            return "no_reel"
+        if not flow["gate"]:
+            return self._step(comment_id, reel, "link")
+        follow = self._follow(comment_id, flow["igsid"], "gate")
+        if follow in ("yes", "unknown"):
+            return self._step(comment_id, reel, "link")
+        if flow["prompts"] >= T["max_prompts"]:
+            store.flow_stuck(self.conn, comment_id)
+            return "stuck"
+        return self._step(comment_id, reel, f"prompt{flow['prompts'] + 1}")
+
+    def _follow(self, comment_id, igsid, purpose):
+        """One follow check, recorded: yes|no|unknown (a failed or unclear read is `unknown`)."""
+        result = self.client.follow_status(igsid)
+        value = result.data.get("is_user_follow_business") if result.ok else None
+        answer = "yes" if value is True else "no" if value is False else "unknown"
+        store.add_check(self.conn, comment_id, purpose, answer)
+        log("INFO", "follow_check", comment=comment_id, purpose=purpose, result=answer, http=result.http,
+            code=result.code)
+        return answer
+
+    def _step(self, comment_id, reel, step):
+        """Claim, POST and record one step. Returns the inbound result, or None when a gate is closed."""
+        urls = [url for _, url in config.link_buttons(reel)] if step == "link" else ()
+        claim = store.claim_step(self.conn, comment_id, step, self.cfg, self.me, urls)
+        if claim.kind == "skip":
+            return "skip_" + step
+        if claim.kind != "claimed":
+            return None
+        flow = store.flow_row(self.conn, comment_id)
+        if step == "link":
+            message = config.render_link(reel, claim.urls)
+        elif step == "followup":
+            message = config.render_followup(reel)
+        else:
+            message = config.render_prompt(self.cfg, reel, int(step[6:]), comment_id)
+        log("INFO", "claim_committed", pid=os.getpid(), attempt=claim.attempt_id, kind="step", step=step)
+        result = self.client.send_to(self.me["user_id"], flow["igsid"], message)
+        outcome = store.record_step(self.conn, claim.attempt_id, result)
+        self._after_post(claim.attempt_id, comment_id, "step", result)
+        return f"{step}_{outcome}"
+
+    def _followups(self):
+        window = clock.iso(clock.now() - timedelta(seconds=T["followup_window"]))
+        for reel in self.cfg.reels:
+            if not (reel.active and reel.flow and reel.flow.followup):
+                continue
+            after = clock.iso(clock.now() - timedelta(minutes=reel.flow.followup.after_minutes))
+            for (comment_id,) in self.conn.execute(
+                    "SELECT comment_id FROM flow WHERE media_id=? AND state='linked' AND followup_at IS NULL "
+                    "AND igsid IS NOT NULL AND link_at<=? AND last_in_at>? AND NOT EXISTS (SELECT 1 FROM attempts a "
+                    "WHERE a.comment_id=flow.comment_id AND a.kind='step' AND a.detail='followup' "
+                    "AND a.outcome IS NOT 'not_sent') ORDER BY link_at LIMIT 20", (reel.media_id, after, window)):
+                self._checkpoint()
+                if self._step(comment_id, reel, "followup") is None:
+                    return
+
+    def _rechecks(self):
+        """14.5: who unfollowed after getting the link. A GET only; 20 per cycle at most."""
+        done = 0
+        for purpose, seconds in zip(("recheck1", "recheck7"), T["recheck_after"]):
+            before = clock.iso(clock.now() - timedelta(seconds=seconds))
+            for row in self.conn.execute(
+                    "SELECT comment_id, igsid FROM flow WHERE state='linked' AND gate=1 AND EXISTS (SELECT 1 FROM checks y "
+                    "WHERE y.comment_id=flow.comment_id AND y.result='yes') "
+                    "AND unfollowed_at IS NULL AND igsid IS NOT NULL AND link_at<=? AND NOT EXISTS (SELECT 1 "
+                    "FROM checks c WHERE c.comment_id=flow.comment_id AND c.purpose=?) ORDER BY link_at LIMIT 20",
+                    (before, purpose)).fetchall():
+                if done >= 20:
+                    return
+                self._checkpoint()
+                self._follow(row["comment_id"], row["igsid"], purpose)
+                done += 1
 
     def _public_reply(self, comment_id):
         """7.4 for one `sent` comment. False when a gate is closed."""
@@ -739,14 +892,23 @@ class Engine:
         alerts.repeat_min later and counts everything since. Windows that close one per cycle are not a message each."""
         texts = {"expired": "{} people lost: their comments are past the 7-day window ({} in all)",
                  "uncertain": "{} DM(s) may or may not have been delivered: they are never sent again ({} in all)"}
+        # `expired` counts only people lost (store.lost_sql), not comments too old when first seen. Its marker is
+        # `told_lost`; the older `told_expired` counted both. The first run without `told_lost` drops the undelivered
+        # `expired` lines of the old count ("2263 people lost" after a first sweep): the real losses among them are
+        # said again below, with the new count.
+        counted = {"expired": (store.lost_sql(), "told_lost"), "uncertain": ("status='uncertain'", "told_uncertain")}
         with store.tx(self.conn):
             now = clock.now()
+            if store.kv_get(self.conn, "told_lost") is None:
+                self.conn.execute("DELETE FROM outbox WHERE key='expired' AND sent_at IS NULL")
+                store.kv_set(self.conn, "told_lost", 0)
             for status, text in texts.items():
-                count = self.conn.execute("SELECT COUNT(*) FROM comments WHERE status=?", (status,)).fetchone()[0]
-                told = int(store.kv_get(self.conn, "told_" + status) or 0)
-                if count <= told:             # these two statuses are final (7.1): the count never falls
+                where, marker = counted[status]
+                count = self.conn.execute(f"SELECT COUNT(*) FROM comments WHERE {where}").fetchone()[0]
+                told = int(store.kv_get(self.conn, marker) or 0)
+                if count <= told:             # these rows are final (7.1): the count never falls
                     continue
-                marks = {"told_" + status: count}
+                marks = {marker: count}
                 if status == "expired":
                     last = store.kv_get(self.conn, "told_expired_at")
                     # 0 <= ...: a wall clock that went back says it now rather than staying silent

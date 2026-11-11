@@ -597,24 +597,23 @@ class HeldSendErrors(World):
         self.boot([comment("eight_days", age=8 * DAY), comment("edge", age=7 * DAY - 15 * MIN),
                    comment("six_days", age=6 * DAY)], budget=None)
         self.assertEqual(self.cycle(), 0)
-        self.assertEqual(self.statuses(), {"eight_days": ("expired", "window"), "edge": ("pending", ""),
+        self.assertEqual(self.statuses(), {"eight_days": ("expired", "too_old"), "edge": ("pending", ""),
                                            "six_days": ("pending", "")})
         self.time.advance(10 * MIN)        # the gate opens ten minutes later: 5 minutes before Meta's own limit
         store.arm(self.conn, "unlimited")
         self.run_for(10 * MIN)
         self.assertEqual(self.posts(), [("dm", "six_days"), ("public", "six_days")])
-        self.assertEqual(self.statuses(), {"eight_days": ("expired", "window"), "edge": ("expired", "window"),
+        self.assertEqual(self.statuses(), {"eight_days": ("expired", "too_old"), "edge": ("expired", "window"),
                                            "six_days": ("done", "")})
         self.assertTrue(self.truth()["dms"][0]["message"]["text"].startswith(self.cfg.late_greeting))
         counts = {(status, reason): n for status, reason, n in self.build()["reels"][0]["counts"]}
-        self.assertEqual(counts, {("expired", "window"): 2, ("done", ""): 1})
+        self.assertEqual(counts, {("expired", "too_old"): 1, ("expired", "window"): 1, ("done", ""): 1})
         lost = [line for line in self.alerts() if line.startswith("ℹ expired")]
         self.assertEqual(len(lost), 1, lost)                                          # the first loss is told at once
-        self.assertTrue(lost[0].startswith("ℹ expired: 1 people lost"), lost)
-        self.cycle(after=self.cfg.alerts.repeat_min * MIN)    # the next ones: summed up, once per alerts.repeat_min
+        self.assertTrue(lost[0].startswith("ℹ expired: 1 people lost") and "(1 in all)" in lost[0], lost)
+        self.cycle(after=self.cfg.alerts.repeat_min * MIN)    # eight_days was too old when first seen (r5, R5-01)
         lost = [line for line in self.alerts() if line.startswith("ℹ expired")]
-        self.assertEqual(len(lost), 2, lost)                                          # each loss is told, once
-        self.assertTrue(lost[1].startswith("ℹ expired: 1 people lost") and "(2 in all)" in lost[1], lost)
+        self.assertEqual(len(lost), 1, lost)                                          # each loss is told, once
 
     def test_cx23_a_comment_that_got_its_dm_is_never_sent_to_again_by_any_path(self):
         """CX-23: a comment whose DM is journaled as sent is evaluated again by every path there is (the next
@@ -975,7 +974,7 @@ class HeldEveryMissHasAReason(World):
             "reply_failed": ("done", "public_failed"),
             "no_match": ("seen", ""), "long": ("seen", "near:too_long"), "question": ("seen", "near:question"),
             "no_author": ("seen", "no_author"), "own": ("seen", "own"), "malformed": ("seen", "malformed"),
-            "too_old": ("expired", "window"), "owner": ("already", "owner_replied"), "waits": ("pending", ""),
+            "too_old": ("expired", "too_old"), "owner": ("already", "owner_replied"), "waits": ("pending", ""),
         }
         self.assertEqual(self.statuses(), expected)
         served = {name for name, final in expected.items() if final[0] == "done"}

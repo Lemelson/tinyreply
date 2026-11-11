@@ -13,6 +13,8 @@ Your job is to make that happen safely and to explain the result in plain words.
 | `autoreply/config.py`, `match.py` | Config validation and the keyword matcher (pure functions). |
 | `autoreply/engine.py`, `store.py`, `meta.py` | The cycle, the SQLite state machine, the Meta HTTP client. |
 | `autoreply/notify.py`, `report.py` | Telegram alerts and the report. |
+| `autoreply/web.py`, `panel.py` | Optional web process: Meta webhook, tracked links, the panel's data (SPEC section 14). It never sends. |
+| `dashboard/` | The web panel (static, no build). Read-only: to change a setting, edit `config.json`, never the panel. |
 | `autoreply/tests/`, `autoreply/sim/` | Unit tests; a fake Meta and end-to-end scenarios. |
 | `STATE_DIR` (default `autoreply/state/`) | **The installation:** `config.json`, `.env`, `core.db`. Never in git. |
 

@@ -94,7 +94,7 @@ def _account_wide(kind, code, subcode, message):
 
 
 def _has_id(kind, body):
-    field = "message_id" if kind == "dm" else "id" if kind == "public" else None
+    field = "message_id" if kind in ("dm", "step") else "id" if kind == "public" else None
     value = body.get(field) if isinstance(body, dict) else None
     return isinstance(value, str) and bool(value.strip())
 
@@ -142,7 +142,7 @@ def classify(method, kind, http, body, connect_failed):
     if code in _AMBIGUOUS:
         return "uncertain", f"code_{code}"
     if 400 <= http < 500:
-        reason = _lookup(_PER_ITEM, code, subcode) or ("invalid" if kind == "dm" and code == 20 else None)
+        reason = _lookup(_PER_ITEM, code, subcode) or ("invalid" if kind in ("dm", "step") and code == 20 else None)
         if reason:
             return "rejected", reason
     reason = _account_wide(kind, code, subcode, message)
@@ -459,6 +459,15 @@ class Client:
     def send_dm(self, ig_user_id, comment_id, message):
         return self._call("POST", "dm", self._url(f"/{_segment(ig_user_id)}/messages"),
                           {"recipient": {"comment_id": comment_id}, "message": message})
+
+    def send_to(self, ig_user_id, igsid, message):
+        """14.4: a step, to a person who opened the conversation (by their Instagram-scoped id)."""
+        return self._call("POST", "step", self._url(f"/{_segment(ig_user_id)}/messages"),
+                          {"recipient": {"id": igsid}, "message": message})
+
+    def follow_status(self, igsid):
+        """14.5: GET is_user_follow_business of a person in a conversation."""
+        return self._call("GET", "read_user", self._url(f"/{_segment(igsid)}", fields="is_user_follow_business"))
 
     def public_reply(self, comment_id, text):
         return self._call("POST", "public", self._url(f"/{_segment(comment_id)}/replies", message=text))

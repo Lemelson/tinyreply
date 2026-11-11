@@ -546,9 +546,58 @@ def _not_running(v):
     return "not_running", f"Сервис не работает: {why}. Комментарии не читаются, ссылки не отправляются."
 
 
+def _has_funnel(conn):
+    """A version-2 database (before the service upgraded it, 14.6) has no funnel tables yet."""
+    return conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='inbound'").fetchone() is not None
+
+
+def _inbound_waiting(v):
+    """14.5: a tap on a button waits unanswered."""
+    if not _has_funnel(v.conn):
+        return None
+    row = v.conn.execute("SELECT COUNT(*), MIN(received_at) FROM inbound WHERE handled_at IS NULL").fetchone()
+    if not row[0] or (v.now - clock.parse(row[1])).total_seconds() < T["inbound_stale"]:
+        return None
+    return "inbound_waiting", (f"{row[0]} нажатий кнопок ждут ответа, самое старое {_when(row[1])}. "
+                               "Люди нажали «Получить»/«Готово» и ждут ссылку: проверьте, включена ли отправка "
+                               "и нет ли паузы.")
+
+
+def _funnel(v):
+    """14.7: per reel and variant, from the first DM to the click."""
+    if not _has_funnel(v.conn):
+        return []
+    rows = v.conn.execute("""
+        SELECT f.media_id, f.variant,
+          SUM(c.status IN ('sent','done')) AS first_dm,
+          SUM(f.pressed_at IS NOT NULL) AS pressed,
+          SUM(EXISTS (SELECT 1 FROM checks k WHERE k.comment_id=f.comment_id AND k.purpose='gate' AND k.result='yes'))
+            AS checked_yes,
+          SUM(EXISTS (SELECT 1 FROM checks k WHERE k.comment_id=f.comment_id AND k.purpose='gate' AND k.result='no'))
+            AS checked_no,
+          SUM(f.link_at IS NOT NULL) AS linked,
+          SUM(f.followup_at IS NOT NULL) AS followup,
+          SUM(f.state='stuck') AS stuck,
+          SUM(f.unfollowed_at IS NOT NULL) AS unfollowed,
+          SUM(EXISTS (SELECT 1 FROM links l JOIN clicks k ON k.token=l.token WHERE l.comment_id=f.comment_id
+                      AND """ + store.PERSON_CLICK + """)) AS clicked_people
+        FROM flow f JOIN comments c ON c.comment_id=f.comment_id
+        GROUP BY f.media_id, f.variant ORDER BY f.media_id, f.variant""").fetchall()
+    clicks = {(r[0], r[1]): r[2] for r in v.conn.execute(
+        f"SELECT l.media_id, l.variant, COUNT(*) FROM clicks k JOIN links l ON l.token=k.token "
+        f"WHERE {store.PERSON_CLICK} GROUP BY l.media_id, l.variant")}
+    out = []
+    for row in rows:
+        reel = v.cfg.reel_by_media.get(row["media_id"])
+        out.append({"media_id": row["media_id"], "reel": reel.name if reel else row["media_id"],
+                    "variant": row["variant"], **{key: row[key] or 0 for key in row.keys()[2:]},
+                    "clicks": clicks.get((row["media_id"], row["variant"]), 0)})
+    return out
+
+
 def _problems(v):
     found = [check(v) for check in (_hold_account, _hold_send, _waiting, _expiring, _unaccounted, _unservable,
-                                    _uncertain_manual, _refusals, _no_active_reel)]
+                                    _uncertain_manual, _refusals, _no_active_reel, _inbound_waiting)]
     found += [_reel(v, reel) for reel in v.active.values()]
     found += [check(v) for check in (_token, _cycle_error, _clock, _env, _config_file_invalid,
                                     _restart_needed, _no_alert_channel)]
@@ -596,8 +645,9 @@ def _reels(v):
     """One entry per configured reel, then one per media id that has rows but is not in the config."""
     counts = {}
     for media_id, status, reason, n in v.conn.execute(
-            "SELECT media_id, status, CASE WHEN status='dup_user' THEN '' ELSE reason END AS why, COUNT(*) "
-            "FROM comments GROUP BY media_id, status, why ORDER BY media_id, status, why"):
+            # an expired row stored before reason `too_old` existed is shown as what it is (store.too_old_sql)
+            f"SELECT media_id, status, CASE WHEN status='dup_user' THEN '' WHEN {store.too_old_sql()} THEN 'too_old' "
+            "ELSE reason END AS why, COUNT(*) FROM comments GROUP BY media_id, status, why ORDER BY media_id, status, why"):
         counts.setdefault(media_id, []).append([status, reason, n])
     configured = v.cfg.reel_by_media
     entries = []
@@ -685,6 +735,7 @@ def build(conn, cfg, now, *, config_file_error=None):
             "near": _near(v),
             "unmatched": _unmatched(v),
             "followers": _followers(v),
+            "funnel": _funnel(v),
         }
 
 
@@ -736,6 +787,11 @@ def _render_reel(reel):
         lines.append(f"    отложено (рилс выключен): {reel['parked']}")
     counts = [f"{status}{'/' + reason if reason else ''} {n}" for status, reason, n in reel["counts"]]
     lines.append("    " + (" · ".join(counts) or "комментариев нет"))
+    expired = {reason: n for status, reason, n in reel["counts"] if status == "expired"}
+    if expired.get("too_old"):
+        lines.append(f"    потеряно людей (не успели ответить за 7 дней): {sum(expired.values()) - expired['too_old']}; "
+                     f"expired/too_old {expired['too_old']} — комментарии, которым уже было больше 7 дней, "
+                     "когда бот их впервые увидел: это не потери")
     return lines
 
 
@@ -758,6 +814,9 @@ def digest(d, limit=DIGEST_UNITS):
             else "Коротких комментариев без ключевого слова нет."]
     tail += [f"  {n} × {text[:DIGEST_TEXT]}" for text, n in d["unmatched"][:UNMATCHED_LISTED]]
     tail += [f"С ключевым словом, но не просьба (near): {d['near']['total']}", _followers_line(d)]
+    tail += [notify._cut(f"Воронка {row['reel']}/{row['variant']}: {row['first_dm']} → нажали {row['pressed']} → "
+                         f"ссылка {row['linked']} → перешли {row['clicked_people']}", 120)
+             for row in d.get("funnel", [])[:4]]
 
     def reel_lines(reel, bounded=False):
         title = f"«{reel['name']}»" if reel["configured"] else f"{reel['media_id']} (нет в настройках)"
@@ -848,5 +907,11 @@ def render(d):
     out += ["", "Частые короткие комментарии без ключевого слова (опечатки — в also_match):" if d["unmatched"]
             else "Коротких комментариев без ключевого слова нет."]
     out += [f"  {n} × {text}" for text, n in d["unmatched"]]
+    if d.get("funnel"):
+        out += ["", "Воронка по вариантам (первое сообщение → нажали → подписан/нет → ссылка → перешли):"]
+        out += [f"  {row['reel']} / {row['variant']}: {row['first_dm']} → {row['pressed']} → "
+                f"{row['checked_yes']}/{row['checked_no']} → {row['linked']} → {row['clicked_people']} чел. "
+                f"({row['clicks']} кликов); повторное {row['followup']}, застряли {row['stuck']}, "
+                f"отписались {row['unfollowed']}" for row in d["funnel"]]
     out += ["", _followers_line(d)]
     return "\n".join(out)

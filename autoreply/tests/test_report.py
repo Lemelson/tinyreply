@@ -995,7 +995,8 @@ class Report(Db):
         self.assertEqual(report.render(again), report.render(data))
         self.assertIsInstance(data["unaccounted"], int)
         self.assertEqual(set(data), {"at", "verdict", "problems", "unaccounted", "unaccounted_parts", "gates", "reels",
-                                     "dms_per_hour", "attempts", "uncertain", "uncertain_unresolved", "near", "unmatched", "followers"})
+                                     "dms_per_hour", "attempts", "uncertain", "uncertain_unresolved", "near", "unmatched", "followers",
+                                     "funnel"})
 
     def test_json_round_trip_of_an_empty_database(self):
         other = store.connect(os.path.join(self.dir, "empty.db"))

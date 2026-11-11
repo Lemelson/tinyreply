@@ -60,6 +60,13 @@ T = {
     "report_dm_history": 24 * _HOUR,    # DMs per hour are listed this far back
     "refusals_within": 24 * _HOUR,      # problem `refusals` looks at the DMs of this long
     "followers_ago": (24 * _HOUR, 7 * _DAY),
+    # funnel (14)
+    "step_cap": 200,                    # step POSTs per rolling hour (they answer a person's own tap)
+    "inbound_stale": 10 * _MIN,         # problem `inbound_waiting`: the oldest unhandled tap is older than this
+    "inbound_max_age": 24 * _HOUR,      # a tap that waited this long is closed `window_passed`
+    "followup_window": 23 * _HOUR,      # a follow-up only while the person's last message is younger than this
+    "recheck_after": (_DAY, 7 * _DAY),  # follow status is read again this long after the link
+    "max_prompts": 3,
     # config bound (4)
     "poll_interval_min": 30,
     "poll_interval_max": 5 * _MIN,      # every 10-minute rule of section 9 must see at least two cycles

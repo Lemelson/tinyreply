@@ -189,8 +189,9 @@ words); a rendered DM over Meta's limit of 1000 UTF-8 bytes with EITHER greeting
 accepts starts.
 
 Rendering, `config.render(cfg, reel, late) -> dict` (the JSON `message` object), pure. There is one
-message format, a text: `{"text": rendered + "\n\n" + link + "\nПодписаться: " + profile_url}`; the `link`
-line is left out when the rendered text already contains the link. `{greeting}` and `{link}` are optional
+message format, a text: `{"text": rendered}`, or `rendered + "\n\n" + link` when the rendered text does not
+contain the reel's link. Nothing else is added (since 11.11.2026 no "Подписаться: profile_url" line; `profile_url`
+is still validated but not sent). The owner edits the text in `preview/index.html`, which applies the same rule. `{greeting}` and `{link}` are optional
 placeholders replaced with `str.replace`; any other brace is literal. `late` selects `late_greeting`.
 
 `reel.active=false`: the reel is neither collected nor sent; its rows are reported as parked, and the
@@ -383,7 +384,8 @@ kv keys (complete list): `me_user_id`, `me_id`, `me_username`, `me_checked_at`, 
 `reel_state:<media_id>` (`ok`|`gone`|`mismatch`|`empty`|`capped`), `unreadable:<media_id>`, `code_hash`, `token`, `token_env_seen`,
 `token_refreshed_at`, `token_expires_at`, `token_refresh_failed_at`, `metric_at`, `daily_at`, `last_now`,
 `fresh_db`, `last_cycle_ok_at`, `last_cycle_error`, `config_running`, `config_loaded_at`, `config_hash`,
-`env_problem`, `clock_problem`, `probe_fails`, `token_refresh_fails`, `told_expired`, `told_expired_at`, `told_uncertain`,
+`env_problem`, `clock_problem`, `probe_fails`, `token_refresh_fails`, `told_lost`, `told_expired_at`, `told_uncertain`
+(`told_expired` of older versions is no longer read, see 9),
 `tg_ok_at`, `tg_failed_at`, `tg_last_outcome` (`ok`|`failed`), `tg_configured`,
 `uncertain_ack:<comment_id>` (first manual-review acknowledgement timestamp).
 No decision counter lives in memory: every "N in a row" is a query over `attempts` ordered by id. Memory
@@ -402,7 +404,7 @@ alert that had to bypass the database, and accepted-but-not-yet-recorded Telegra
 | `done` | DM confirmed and public reply resolved (reason `` , `public_failed`, `public_uncertain`, `public_skipped`) | yes |
 | `uncertain` | the DM may or may not have been delivered | yes |
 | `refused` | Meta definitely refused this one: reason `user_unavailable`, `comment_gone`, `outside_window`, `invalid` | yes |
-| `expired` | window passed before a DM could be sent (reason `window`) | yes |
+| `expired` | window passed before a DM could be sent (reason `window`: a person lost), or the comment was already past the window when the bot first saw it (reason `too_old`: nobody was let down) | yes |
 | `dup_user` | same person already handled for this media (reason `dup:<comment_id>`) | yes |
 | `already` | handled outside this database: `owner_replied`, `already_replied`, `migrated` (entered at deployment, 12) | yes |
 
@@ -560,12 +562,13 @@ row or fewer than 14 days remain. The token is never written to logs, alerts or 
      reason and is re-decided as usual. `already` therefore only ever marks a request, and nobody is written
      off (7.2 step 2) because the owner answered their question. Stated cost: after a lost database together
      with a keyword edit, a person served under the old keywords can be served once more.
-  2. New comment: `decide()`; `pending` if inside the window, `expired`/`window` if older.
+  2. New comment: `decide()`; `pending` if inside the window, `expired`/`too_old` if older (a first sweep of a
+     reel with history, or a fresh database: these are not people lost, 9).
   3. Existing `seen` row, on full sweeps only: re-run `decide()` with the fetched author AND the text Meta
      lists now (a person may edit a comment), updating the decision and reason even if it stays seen; the row
      is written only when something changed. The stored text is kept only when the listing has none. The
      timestamp is repaired only for a malformed first observation; healthy timestamps, `pending` rows and
-     terminal rows are never changed. Now `pending` -> transition (or `expired` if outside the window).
+     terminal rows are never changed. Now `pending` -> transition (or `expired`/`too_old` if outside the window).
 - A config edit can turn any number of stored comments into requests at the first full sweep after the
   restart. They are sent to only after a human has armed again: the start with the edited config set the
   budget to 0 (4).
@@ -708,6 +711,13 @@ Keys:
 - `config_file_invalid` (4): the file cannot be loaded but a validated `config_running` is available; the
   service keeps running with that snapshot (and would not start again), `report` uses it and never writes a repair.
 
+"People lost" (event `expired`, marker `told_lost`) are `expired` rows the bot saw while they could still be
+served: reason `window`, and `first_seen_at` < `ts` + 7 days - 10 min. The second test sorts rows stored before
+reason `too_old` existed (`store.too_old_sql`); the report shows such rows as `expired/too_old` too, and the reel
+lines of `bot.py report` say in plain words that `too_old` comments are not losses. The marker `told_expired` of
+older versions counted every `expired` row; the first cycle without `told_lost` deletes the still undelivered
+`expired` outbox lines (they carried that count) and then announces the real losses afresh.
+
 "People waiting" (the report per reel, the counts in the `waiting` and `expiring` texts, the `arm` forecast)
 are the distinct (media_id, user_id) that have a `pending` row and NO other row of the same media_id and
 user_id in the set of 7.2 step 2. A pending row of a person who is already handled takes no turn and is
@@ -726,7 +736,7 @@ else `PROBLEM`.
   queue again when `repeat_min` passed since `last_announced_at`; a key that disappeared -> delete and queue
   "✓ cleared: key".
 - `event(key, text)`: queue once. Events: `started`, `fatal_start`, `config_changed` (4), `armed`,
-  `disarmed`, `stage_done`, `expired` (the count of `expired` rows rose: "K people lost"; the first at once, then at most once per `alerts.repeat_min` with everything since), `uncertain`
+  `disarmed`, `stage_done`, `expired` (the count of people lost rose: "K people lost"; the first at once, then at most once per `alerts.repeat_min` with everything since), `uncertain`
   (count rose), `fresh_db`, `digest` (8.7). Return a positive durable outbox id or `False` if queuing fails;
   lost-person/daily marker callers test explicit `False` before committing the marker.
 - `queue_clear(key)`: durably queue raw "✓ cleared: key", returning id/False. Engine forgets its direct
@@ -811,7 +821,7 @@ wait; cancellation by SIGTERM/SIGINT exits 0.
   terminal status, and nothing is left `pending` without a reported `waiting_reason`.
 - I11 payloads: the DM contains the reel's link and the right greeting; the public reply is one of the phrases.
 - I12 alerts: every blocking mode, closed gate with people waiting (a switched-off reel is one), every
-  request that cannot be served (`unservable`), and every expired/uncertain person is announced on Telegram
+  request that cannot be served (`unservable`), and every expired (not `too_old`)/uncertain person is announced on Telegram
   (when the fake's Telegram is up) within the scenario's deadline; report is an object with a root
   `unaccounted` of exact integer type >=0 (not bool/string/float or a nested substitute), equal to 0 at
   the end. Lost-person acceptance requires a complete positive count event with its exact key and
@@ -850,8 +860,15 @@ wrapper `/usr/local/bin/igbot` as that user. This is a release procedure, not ev
 currently has these bytes, paths or state. See `audit/RELEASE-GATES.md` and `audit/OPERATIONS.md` in the repository (not deployed) and `HANDOFF.md`.
 
 Updates: a push to GitHub `main` is installed by `deploy/update.sh` (signed webhook, 5-minute timer as fallback).
-It changes only the files listed above plus `VERSION`; when any of them differs it runs `igbot disarm` first,
-then restarts the service, so sending stays closed until the next `arm`. STATE_DIR is never written by it.
+It changes only the nine modules, `SPEC.md`, `config.example.json` and `VERSION`. Only when one of the nine
+modules differs does it disarm and restart: first it runs the new `bot.py check` (and imports the nine modules)
+as `igbot` against the live config and `.env` (offline, the database read-only), and refuses the deploy when that
+fails; then `igbot disarm`, install, `systemctl try-restart`, so sending stays closed until the next `arm`.
+A service that is stopped (the owner's brake, a `send-one` window) is left stopped. A failed restart puts the
+previous files back. `VERSION` is written only after the service is active again (or was left stopped / is not
+enabled), so a refused or failed deploy is tried again by the timer. A change of `SPEC.md` or
+`config.example.json` alone (neither is read at run time) is installed without disarm or restart.
+STATE_DIR is never written by it.
 
 Before first start, with BOTH old and new senders stopped/disabled:
 
@@ -929,3 +946,141 @@ with the reasoning are `audit-claude/issues/<id>.md` (repository only).
 Phase 1 is everything above. Deliberately NOT built (add only with its own simulator scenario): click
 tracking, a second message format, a `restore` command, an external heartbeat URL, pruning,
 webhooks, A/B tests, follow checks, a web UI.
+
+## 14. Funnel (phase 2, 10.11.2026): button, follow check, link buttons, follow-up, A/B, clicks, panel
+
+Owner's request of 10.11.2026: the first DM can carry a «Получить» button, the link can wait for a follow
+check, the link message carries up to two link buttons, a follow-up comes later, all of it switchable per A/B
+variant, clicks are counted, and a panel in the browser shows it. A reel WITHOUT `flow` behaves exactly as in
+sections 1–13; G1..G6 still hold for the first DM of every reel. Everything here is additive.
+
+### 14.1 Processes
+
+- The main process (`bot.py run`) stays the only sender. It also reads the `inbound` table (below).
+- New process `web.py` (systemd `ig-autoreply-web`, user `igbot`, same `STATE_DIR`, 127.0.0.1:5421 behind nginx,
+  `MemoryMax=60M`). Python stdlib only. It NEVER calls Meta and never sends. Its only writes are
+  `store.add_inbound` and `store.add_click`. Routes:
+  - `GET /meta/webhook`: `hub.mode=subscribe` and `hub.verify_token` == `.env` `WEBHOOK_VERIFY_TOKEN` -> 200 with
+    `hub.challenge`; else 403.
+  - `POST /meta/webhook`: body at most 256 KiB; `X-Hub-Signature-256` must equal `sha256=` + HMAC-SHA256 of the raw
+    body with `.env` `IG_APP_SECRET` (constant-time compare), else 403. For every `entry[].messaging[]` item:
+    a `postback` -> inbound kind `postback` (payload); a `message` that is not `is_echo` -> kind `message`
+    (text, or `quick_reply.payload` as payload); everything else is ignored. Dedupe by `mid` (`postback.mid` /
+    `message.mid`; without one, SHA-256 of the item's canonical JSON). 200 after a valid signature even if nothing
+    was stored.
+  - `GET /r/<token>`: token of `links` -> insert a click (`at`, user agent cut to 200 chars), 302 to its URL;
+    unknown token -> 404. No cookies, no IP stored.
+  - `/panel/…`: a login page (`/panel/login`, POST with user and password against `.env` `PANEL_USER` and
+    `PANEL_PASSWORD`; either missing -> 403 for everything under /panel). A login sets a signed cookie for 90 days
+    (HttpOnly, Secure, SameSite=Strict, key derived from the credentials, so a new password ends every session).
+    Wrong logins wait 1 s and lock: 5 per address (nginx `X-Real-IP`) in 15 min, 30 in all per hour. `/panel/` serves the `dashboard/` files; `/panel/data/report.json` serves
+    `panel.build(conn, cfg, now)` from a read-only connection and the config in kv `config_running`.
+    A database busy for more than 5 s answers 503: Meta repeats the delivery, and `mid` dedupes it.
+  - New `.env` keys of the web process: `IG_APP_SECRET`, `WEBHOOK_VERIFY_TOKEN`, `PANEL_USER`, `PANEL_PASSWORD`.
+  - `GET /health` -> `ok`.
+- The main process wakes early: between cycles it checks once per sleep slice whether an unhandled inbound row
+  exists and then runs `Engine.flow_cycle()` (identity, holds and the work of 14.5, no collect), so a tap is
+  answered within seconds, not after `poll_interval_sec`.
+
+### 14.2 Config
+
+Optional top-level `click_base` (HTTPS URL ending in `/r/`). Optional reel key `flow`:
+```json
+"flow": {
+  "opening": {"text": "{greeting} Нажми кнопку, и я пришлю ссылку 👇", "button": "Получить"},
+  "gate": {"text": "Подпишись на меня и нажми «Готово», сразу пришлю ссылку", "button": "Готово",
+           "profile_button": "Открыть профиль", "again": "Пока не вижу подписку 🙈 Подпишись и нажми «Готово»"},
+  "link": {"text": "Держи Arena Skill 👇", "buttons": [{"title": "Открыть", "url": "https://…"}]},
+  "followup": {"text": "Получилось поставить?", "after_minutes": 60},
+  "variants": [{"name": "A", "weight": 50, "opening": true, "gate": true},
+               {"name": "B", "weight": 50, "opening": false, "gate": false, "text": "…optional first-DM text…"}]
+}
+```
+Rules: `variants` 1..4, unique names (1..12 letters/digits), integer weights 1..100. A variant with `gate: true`
+needs `opening: true` and the `gate` block (the follow check can only run after a tap opens the conversation);
+a variant with `opening: true` needs the `opening` block. `link` optional; `link.buttons` 1..2 (title 1..20 chars,
+HTTPS url). Button titles 1..20 chars. Button-template texts at most 640 UTF-8 bytes. `followup` optional,
+`after_minutes` 1..1380. Every new text passes the own-words rule of section 4. `variant.text` replaces the reel
+`text` for that variant's first DM when it has no button (and must contain the link, as in section 4).
+
+### 14.3 First DM per variant
+
+The variant is chosen in the claim transaction (7.2 step 5), weighted, from `int(sha256(media_id:user_id))`, so
+a person keeps their variant. The claim inserts the `flow` row. Message:
+- `opening: false` -> the text DM of section 4 (with `variant.text` if set); with `click_base` the reel link in it
+  is replaced by a tracked link `click_base + token` (token made in the claim). `flow.state='direct'`; `link_at`
+  is set when the DM is confirmed.
+- `opening: true` -> button template; text = opening text (greeting rendered); one postback button
+  `{"title": opening.button, "payload": "g:<comment_id>"}`. `flow.state='opened'`.
+Everything else about the first DM (budget, slot, cap, holds, statuses, public reply) is unchanged.
+
+### 14.4 Steps
+
+A step is one POST to `/{ig_user_id}/messages` with `recipient: {id: <igsid>}`, journaled in `attempts` with
+`kind='step'`, `detail` = step name (`link`, `prompt1`, `prompt2`, `prompt3`, `followup`). `store.claim_step` is
+one committed transaction: the gates of 7.2 step 3 except the budget (a step answers the person's own tap), a
+cap of `T["step_cap"]` step attempts per rolling hour, no spacing, and at most ONE attempt per (comment, step)
+unless every earlier one was `not_sent` (proved not connected). `record_step` closes the row; outcome `global`
+sets the send hold as for a DM. An unclear answer is never retried.
+- `link`: button template; text = `link.text` (default: reel name), buttons = `link.buttons` (tracked with
+  `click_base`), or one button «Открыть» to the reel link when `link` is absent. ok -> `link_at`, state `linked`.
+- `promptN`: button template; text = `gate.text` (N=1) or `gate.again` (N>1); buttons: web_url `profile_button`
+  -> `profile_url`, postback `gate.button` payload `d:<comment_id>`. ok -> state `gate`.
+- `followup`: a text message, sent once when `link_at + after_minutes` passed and `last_in_at + 23 h` has not.
+
+### 14.5 Inbound, follow checks
+
+`Engine.flow_cycle()` handles unhandled `inbound` rows in id order (also run at the end of every `cycle()`):
+- `postback` with payload `g:<cid>` or `d:<cid>` of an existing `flow` row: sets `igsid` (first tap),
+  `pressed_at` (first) and `last_in_at`. A tap from another sender than the stored `igsid` -> `other_sender`,
+  nothing sent. State `linked` -> `already_linked`. Variant without gate -> step `link`. With gate -> follow
+  check `GET /{v}/{igsid}?fields=is_user_follow_business` (row in `checks`): true -> `link`; false -> next
+  `promptN` (after `prompt3`: state `stuck`, nothing sent); no usable answer -> `link` (fail open, recorded
+  `unknown`).
+- `message`: sets `last_in_at` on every `flow` row with that `igsid`; nothing is sent.
+- Unknown payloads -> `ignored`. While sending is off, a hold is on or identity is unknown, rows wait; a row that
+  waited 24 h is closed `window_passed`. Problem `inbound_waiting` when the oldest unhandled row is older than
+  10 minutes.
+- Recheck: for a `linked` person whose last check was `yes`, the follow status is read again 1 day and 7 days
+  after `link_at` (a GET only). `no` sets `unfollowed_at`. Errors are recorded `unknown`.
+
+### 14.6 Tables (schema version 3; `store.init` upgrades a version-2 database in place: new tables only)
+
+```sql
+CREATE TABLE flow (comment_id TEXT PRIMARY KEY, media_id TEXT NOT NULL, variant TEXT NOT NULL,
+  opening INTEGER NOT NULL, gate INTEGER NOT NULL, state TEXT NOT NULL,   -- direct|opened|gate|linked|stuck
+  igsid TEXT, pressed_at TEXT, last_in_at TEXT, follow TEXT, prompts INTEGER NOT NULL DEFAULT 0,  -- follow: last check
+  link_at TEXT, followup_at TEXT, unfollowed_at TEXT, created_at TEXT NOT NULL);
+CREATE INDEX idx_flow_igsid ON flow(igsid);
+CREATE TABLE checks (id INTEGER PRIMARY KEY, comment_id TEXT NOT NULL, at TEXT NOT NULL, purpose TEXT NOT NULL,
+  result TEXT NOT NULL);                                                  -- purpose gate|recheck1|recheck7
+CREATE INDEX idx_checks_comment ON checks(comment_id);
+CREATE TABLE inbound (id INTEGER PRIMARY KEY, mid TEXT UNIQUE NOT NULL, received_at TEXT NOT NULL,
+  sender TEXT, kind TEXT NOT NULL, payload TEXT, text TEXT, handled_at TEXT, result TEXT);
+CREATE INDEX idx_inbound_open ON inbound(handled_at, id);
+CREATE TABLE links (token TEXT PRIMARY KEY, comment_id TEXT NOT NULL, media_id TEXT NOT NULL, variant TEXT,
+  position INTEGER NOT NULL, url TEXT NOT NULL, created_at TEXT NOT NULL);   -- position 0: link in the first DM
+CREATE INDEX idx_links_comment ON links(comment_id);
+CREATE TABLE clicks (id INTEGER PRIMARY KEY, token TEXT NOT NULL, at TEXT NOT NULL, agent TEXT);
+CREATE INDEX idx_clicks_token ON clicks(token);
+```
+
+### 14.7 Report and panel
+
+`report.build` gains `funnel`: per reel and variant `first_dm` (confirmed), `pressed`, `checked_yes`,
+`checked_no`, `linked`, `clicks`, `clicked_people`, `followup`, `stuck`, `unfollowed`. Clicks whose user agent
+is a link-preview robot (`store.ROBOTS`: Meta fetches a link in a DM to draw its preview) are not counted.
+`panel.build()` (module `panel.py`) is the
+JSON of the web panel: `generated_at`, `account`, `bot` (state ok|attention|blocked, sending, budget, problems),
+`totals`, `reels` (counts and funnel), `people` (newest 200 with variant, step times, clicks), `hourly` (24 h).
+
+### 14.8 Not built
+
+Answers to DM keywords and story replies (an inbound `message` is stored, not answered); quick replies; more than
+one account. The simulator (`sim/`) does not model webhooks: the funnel is covered by unit tests only.
+
+**Risk before going live (research/lessons/meta-api-facts.md A6):** one vendor reports that since late August 2026
+Instagram refuses buttons in a private reply to a commenter who does not follow the account (a 400 that still uses
+up the one private reply). Unverified. The bot records such a refusal as `refused` (that person is lost, never
+retried). Before giving `opening: true` to many people: test it on a second account that does NOT follow, with
+`igbot arm 1`, and compare the refusal rate of variants A and B in the report.

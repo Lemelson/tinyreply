@@ -223,7 +223,7 @@ class HappyPath(EngineCase):
         text = dm["message"]["text"]
         self.assertTrue(text.startswith(self.cfg.greeting + " "), text)
         self.assertIn(self.cfg.reels[0].link, text)
-        self.assertIn(self.cfg.profile_url, text)
+        self.assertNotIn("Подписаться", text)   # since 11.11 the bot adds nothing but a missing link
         self.assertEqual(reply["comment_id"], "c1")
         self.assertIn(reply["text"], self.cfg.public_phrases)
         journal = self.attempts("comment_id, kind, detail, http, outcome, reason, meta_id, finished_at IS NOT NULL")
@@ -413,7 +413,7 @@ class Collect(EngineCase):
             "long": (comment("long", "мне очень нужна эта арена прямо сейчас"), ("seen", "near:too_long")),
             "other": (comment("other", "красиво"), ("seen", "")),
             "name": (comment("name", "Арина"), ("seen", "")),
-            "too_old": (comment("too_old", age=7 * DAY - 9 * MIN), ("expired", "window")),
+            "too_old": (comment("too_old", age=7 * DAY - 9 * MIN), ("expired", "too_old")),
             "owner_replied": (comment("owner_replied", replies=[
                 {"text": "Отправил!", "from": {"id": ME["id"], "username": ME["username"]}}]),
                 ("already", "owner_replied")),
@@ -586,7 +586,7 @@ class Collect(EngineCase):
         with mock.patch.object(store, "expire", return_value=0):   # what collect itself decides
             self.assertEqual(self.cycle(after=SLOT), 0)
         self.assertEqual({tuple(row) for row in self.conn.execute("SELECT status, reason FROM comments")},
-                         {("expired", "window")})
+                         {("expired", "too_old")})                 # not requests while they could be served
 
     def test_a_stored_comment_gets_the_author_meta_shows_now(self):
         self.boot([comment("c1")], budget=None)

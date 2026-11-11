@@ -13,7 +13,6 @@ CODE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 EXAMPLE = os.path.join(CODE, "config.example.json")
 LINK = "https://example.com/arena"
 PROFILE = "https://www.instagram.com/someone/"
-FOLLOW_LINE = "Подписаться: " + PROFILE
 
 
 def valid():
@@ -311,14 +310,15 @@ class Rejected(ConfigCase):
         self.assertIn("the matcher of reels[1] ", problems[0])
 
     def test_dm_text_the_matcher_would_accept(self):
-        # the message carries two URLs: 12 words with this text, a request only for a reel that takes that many
-        self.assertEqual(self.load_changed(self.with_text("Арена 👇")).reels[0].text, "Арена 👇")
-        problems = self.problems(self.with_text("Арена 👇", max_words=20))
+        # with the link line this text has more words than max_words=5: a request only for a reel that takes that many
+        text = "Арена 👇 вот ссылка на скилл"
+        self.assertEqual(self.load_changed(self.with_text(text)).reels[0].text, text)
+        problems = self.problems(self.with_text(text, max_words=20))
         self.assertEqual([problem.split(": ")[0] for problem in problems], ["reels[0].text with greeting"])
 
     def test_dm_text_is_checked_with_either_greeting(self):
-        # 14 words: «Привет! арена» with the two link lines fits (12), with the long late greeting it does not (16)
-        roomy = dict(max_words=14, link="https://example.com/skill")
+        # 9 words: «Привет! арена» with the link line fits (up to 9), with the long late greeting it does not
+        roomy = dict(max_words=9, link="https://example.com/skill")
         only_fresh = self.problems(self.with_text("{greeting} арена", **roomy))
         self.assertEqual([problem.split(": ")[0] for problem in only_fresh], ["reels[0].text with greeting"])
 
@@ -388,22 +388,22 @@ class Limits(ConfigCase):
     """Meta's limit holds for BOTH greetings."""
 
     def test_text_message_is_measured_in_utf8_bytes_not_characters(self):
-        # 480 Cyrillic letters: 480 characters but 960 bytes before the link lines
-        problems = self.problems(self.with_text("я" * 480))
+        # 490 Cyrillic letters: 490 characters but 980 bytes before the link line
+        problems = self.problems(self.with_text("я" * 490, link="https://example.com/skill"))
         self.assertEqual(len(problems), 1, problems)
         self.assertIn("UTF-8 bytes", problems[0])
         self.assertTrue(problems[0].startswith("reels[0].text with greeting: "), problems)
-        self.assertEqual(self.load_changed(self.with_text("x" * 480)).reels[0].text, "x" * 480)
+        self.assertEqual(self.load_changed(self.with_text("x" * 480, link="https://example.com/skill")).reels[0].text,
+                         "x" * 480)
 
     def test_text_message_limit_is_exactly_1000_bytes(self):
-        cfg = self.load(valid())
-        overhead = len(config.render(cfg, cfg.reels[0], False)["text"].encode()) \
-            - len(cfg.greeting.encode()) - len(cfg.reels[0].text.replace("{greeting}", "").encode())
-        room = 1000 - overhead
+        skill = dict(link="https://example.com/skill")   # a link without the keyword: the text is one long word
+        cfg = self.load_changed(self.with_text("x", **skill))
+        room = 1000 - (len(config.render(cfg, cfg.reels[0], False)["text"].encode()) - 1)
         fits = "я" * (room // 2) + "x" * (room % 2)
-        loaded = self.load_changed(self.with_text(fits))
+        loaded = self.load_changed(self.with_text(fits, **skill))
         self.assertEqual(len(config.render(loaded, loaded.reels[0], False)["text"].encode()), 1000)
-        problems = self.problems(self.with_text(fits + "x"))
+        problems = self.problems(self.with_text(fits + "x", **skill))
         self.assertEqual(len(problems), 1, problems)
         self.assertIn("1001 UTF-8 bytes", problems[0])
 
@@ -426,37 +426,37 @@ class Render(ConfigCase):
     def test_the_message(self):
         cfg, reel = self.reel_with("{greeting} Держи скилл")
         self.assertEqual(config.render(cfg, reel, False),
-                         {"text": f"Привет! Держи скилл\n\n{LINK}\n{FOLLOW_LINE}"})
+                         {"text": f"Привет! Держи скилл\n\n{LINK}"})
 
     def test_late_selects_the_late_greeting(self):
         cfg, reel = self.reel_with("{greeting} Держи скилл")
         self.assertEqual(config.render(cfg, reel, True),
-                         {"text": f"Привет! Лучше поздно, чем никогда Держи скилл\n\n{LINK}\n{FOLLOW_LINE}"})
+                         {"text": f"Привет! Лучше поздно, чем никогда Держи скилл\n\n{LINK}"})
 
     def test_link_line_is_left_out_when_the_text_has_the_link(self):
         cfg, reel = self.reel_with("{greeting} Вот ссылка: {link} и всё")
         text = config.render(cfg, reel, False)["text"]
-        self.assertEqual(text, f"Привет! Вот ссылка: {LINK} и всё\n\n{FOLLOW_LINE}")
+        self.assertEqual(text, f"Привет! Вот ссылка: {LINK} и всё")
         self.assertEqual(text.count(LINK), 1)
 
     def test_placeholders_are_optional(self):
         cfg, reel = self.reel_with("Держи скилл")
         for late in (False, True):
-            self.assertEqual(config.render(cfg, reel, late), {"text": f"Держи скилл\n\n{LINK}\n{FOLLOW_LINE}"})
+            self.assertEqual(config.render(cfg, reel, late), {"text": f"Держи скилл\n\n{LINK}"})
 
     def test_stray_braces_are_literal(self):
         # v1 used str.format: any of these raised or was eaten
         text = "{greeting} {} {x} {0} {{link}} }{ {greeting {link"
         cfg, reel = self.reel_with(text)
         self.assertEqual(config.render(cfg, reel, False)["text"],
-                         "Привет! {} {x} {0} {" + LINK + "} }{ {greeting {link\n\n" + FOLLOW_LINE)
+                         "Привет! {} {x} {0} {" + LINK + "} }{ {greeting {link")
 
     def test_render_is_pure(self):
         cfg, reel = self.reel_with("{greeting} Держи скилл")
         before = copy.deepcopy((cfg, reel))
         first = config.render(cfg, reel, False)
         first.clear()
-        self.assertEqual(config.render(cfg, reel, False), {"text": f"Привет! Держи скилл\n\n{LINK}\n{FOLLOW_LINE}"})
+        self.assertEqual(config.render(cfg, reel, False), {"text": f"Привет! Держи скилл\n\n{LINK}"})
         self.assertEqual((cfg, reel), before)
 
 
@@ -476,7 +476,8 @@ class Example(unittest.TestCase):
             text = config.render(cfg, reel, late)["text"]
             self.assertTrue(text.startswith(greeting + " Держи"))
             self.assertEqual(text.count(reel.link), 1)
-            self.assertTrue(text.endswith("Подписаться: " + cfg.profile_url))
+            self.assertTrue(text.endswith("\n\n" + reel.link))
+            self.assertNotIn("Подписаться", text)
             self.assertLessEqual(len(text.encode()), 1000)
 
     def test_the_bot_does_not_trigger_on_its_own_words(self):

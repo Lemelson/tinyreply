@@ -32,7 +32,7 @@ import clock
 import match
 from clock import T
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 _BUSY_PAUSE = 0.05        # real seconds between two tries to switch a busy database to WAL
 # 7.2 step 2: the rows that stand for "this person has (or may have) the DM of this media"
 HANDLED = "{}status IN ('sending','sent','done','uncertain','already')"
@@ -64,6 +64,26 @@ CREATE TABLE outbox (id INTEGER PRIMARY KEY, key TEXT, text TEXT, created_at TEX
 CREATE TABLE problems (key TEXT PRIMARY KEY, text TEXT, since TEXT, last_announced_at TEXT)
 """
 
+# 14.6: the funnel tables, added by schema version 3 (a version-2 database gets exactly these)
+_SCHEMA_V3 = """
+CREATE TABLE flow (comment_id TEXT PRIMARY KEY, media_id TEXT NOT NULL, variant TEXT NOT NULL,
+  opening INTEGER NOT NULL, gate INTEGER NOT NULL, state TEXT NOT NULL,
+  igsid TEXT, pressed_at TEXT, last_in_at TEXT, follow TEXT, prompts INTEGER NOT NULL DEFAULT 0,
+  link_at TEXT, followup_at TEXT, unfollowed_at TEXT, created_at TEXT NOT NULL);
+CREATE INDEX idx_flow_igsid ON flow(igsid);
+CREATE TABLE checks (id INTEGER PRIMARY KEY, comment_id TEXT NOT NULL, at TEXT NOT NULL, purpose TEXT NOT NULL,
+  result TEXT NOT NULL);
+CREATE INDEX idx_checks_comment ON checks(comment_id);
+CREATE TABLE inbound (id INTEGER PRIMARY KEY, mid TEXT UNIQUE NOT NULL, received_at TEXT NOT NULL,
+  sender TEXT, kind TEXT NOT NULL, payload TEXT, text TEXT, handled_at TEXT, result TEXT);
+CREATE INDEX idx_inbound_open ON inbound(handled_at, id);
+CREATE TABLE links (token TEXT PRIMARY KEY, comment_id TEXT NOT NULL, media_id TEXT NOT NULL, variant TEXT,
+  position INTEGER NOT NULL, url TEXT NOT NULL, created_at TEXT NOT NULL);
+CREATE INDEX idx_links_comment ON links(comment_id);
+CREATE TABLE clicks (id INTEGER PRIMARY KEY, token TEXT NOT NULL, at TEXT NOT NULL, agent TEXT);
+CREATE INDEX idx_clicks_token ON clicks(token)
+"""
+
 # 7.1: every allowed status change
 _NEXT = {
     "seen": ("pending", "expired", "already"),
@@ -75,8 +95,11 @@ _NEW_STATUSES = ("seen", "pending", "expired", "already")   # what collect may s
 
 # kind: 'claimed', or why not: 'skip' (this row is settled, take the next one), 'no_budget', 'wait' (with the
 # seconds until the slot is free), 'cap', or a closed gate: 'no_identity', 'sending_off', 'account_hold', 'send_hold'
-Claim = namedtuple("Claim", "kind attempt_id late seconds stage monotonic started_at",
-                   defaults=(None, None, 0, None, None, None))
+Claim = namedtuple("Claim", "kind attempt_id late seconds stage monotonic started_at variant tokens",
+                   defaults=(None, None, 0, None, None, None, None, ()))
+# 14.4: kind 'claimed' (POST, with `urls` for the link buttons), 'skip' (this step was already tried), 'cap',
+# or a closed gate
+StepClaim = namedtuple("StepClaim", "kind attempt_id urls", defaults=(None, ()))
 PublicClaim = namedtuple("PublicClaim", "kind attempt_id phrase monotonic started_at", defaults=(None, None, None, None))
 
 
@@ -142,9 +165,14 @@ def init(conn):
         version = conn.execute("PRAGMA user_version").fetchone()[0]
         if version == SCHEMA_VERSION:
             return False
+        if version == 2:   # 14.6: the funnel tables only; nothing of version 2 changes
+            for statement in _SCHEMA_V3.split(";"):
+                conn.execute(statement)
+            conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
+            return False
         if version != 0:
             raise RuntimeError(f"database schema version {version}: this code only knows version {SCHEMA_VERSION}")
-        for statement in _SCHEMA.split(";"):
+        for statement in (_SCHEMA + ";" + _SCHEMA_V3).split(";"):
             conn.execute(statement)
         conn.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
         kv_set(conn, "fresh_db", 1)
@@ -279,7 +307,7 @@ def uncertain_wait(conn):
 
 def blocked_wait(conn):
     """Hold seconds after an account-wide refusal of a POST: 30 min, doubled for each further one, at most 12 h."""
-    k = _in_a_row(conn, "'dm','public'", "outcome IS 'global'")
+    k = _in_a_row(conn, "'dm','public','step'", "outcome IS 'global'")
     return _doubled("hold_blocked", k - 1) if k else 0
 
 
@@ -337,6 +365,20 @@ def is_own(me, user_id, username):
 def window_closed(ts, now):
     """Meta's 7-day reply window, less the safety margin, is over for a comment written at `ts` (7.2 step 1)."""
     return clock.parse(ts) <= now - timedelta(seconds=T["reply_window"] - T["window_margin"])
+
+
+def too_old_sql():
+    """SQL test (7.1, 9): an `expired` row that is NOT a person lost. A comment that was already past the window
+    when the bot first saw it is `expired`/`too_old` (8.3 rules 2-3); rows stored before that reason existed say
+    `window`, and are told apart by `first_seen_at` (ts and first_seen_at share clock.iso's format)."""
+    seconds = T["reply_window"] - T["window_margin"]
+    return (f"(status='expired' AND (reason='too_old' OR "
+            f"first_seen_at >= strftime('%Y-%m-%dT%H:%M:%fZ', ts, '+{seconds} seconds')))")
+
+
+def lost_sql():
+    """SQL test (9): an `expired` row that is a person lost: the bot saw the comment while it could still serve it."""
+    return f"(status='expired' AND NOT {too_old_sql()})"
 
 
 def add_comment(conn, comment_id, media_id, user_id, username, text, ts, status, reason=""):
@@ -496,7 +538,9 @@ def claim_dm(conn, comment_id, cfg, me, slot_wait=0):
         if left == 1:
             # arm/disarm may run during the POST. Its completed stage belongs to this claim's epoch.
             stage = (kv_get(conn, "armed_n"), int(kv_get(conn, "armed_through_attempt_id") or 0))
-        return Claim("claimed", attempt_id, late, stage=stage, monotonic=monotonic, started_at=started_at)
+        variant, tokens = _flow_claim(conn, cfg, reel, row, started_at)
+        return Claim("claimed", attempt_id, late, stage=stage, monotonic=monotonic, started_at=started_at,
+                     variant=variant, tokens=tokens)
 
 
 def _answer(result, id_field):
@@ -547,6 +591,9 @@ def record_dm(conn, attempt_id, result):
         else:
             to, reason = "uncertain", why
         _settle(conn, comment_id, "sending", to, reason)
+        if outcome == "ok":   # 14.3: a first DM without a button carried the link itself
+            conn.execute("UPDATE flow SET link_at=? WHERE comment_id=? AND state='direct' AND link_at IS NULL",
+                         (clock.iso(), comment_id))
         _hold_after(conn, "dm", outcome, why)
         return to
 
@@ -655,3 +702,169 @@ def problem_announce(conn, key, text):
 
 def problem_clear(conn, key):
     return conn.execute("DELETE FROM problems WHERE key=?", (key,)).rowcount == 1
+
+
+# ---------- written by web.py (14.1): inbound events and clicks; nothing else ----------
+
+# 14.7: user agents of link-preview robots, lower case. Meta fetches a link inside a DM to draw its preview:
+# that GET of a tracked link is not a person's click. PERSON_CLICK is the SQL test on a `clicks` row named `k`.
+ROBOTS = ("facebookexternalhit", "facebookcatalog", "meta-externalagent", "meta-externalfetcher", "bot", "crawler",
+          "spider", "preview")
+PERSON_CLICK = "(k.agent IS NULL OR NOT ({}))".format(" OR ".join(f"lower(k.agent) LIKE '%{r}%'" for r in ROBOTS))
+
+def add_inbound(conn, mid, sender, kind, payload=None, text=None):
+    """Store one webhook event; False if this `mid` is already stored (Meta repeats deliveries)."""
+    with tx(conn):
+        return conn.execute(
+            "INSERT INTO inbound (mid, received_at, sender, kind, payload, text) VALUES (?,?,?,?,?,?) "
+            "ON CONFLICT(mid) DO NOTHING",
+            (_text(mid), clock.iso(), _text(sender), kind, _text(payload), _text(text))).rowcount == 1
+
+
+def link_url(conn, token):
+    """The URL a tracked token stands for, or None."""
+    row = conn.execute("SELECT url FROM links WHERE token=?", (token,)).fetchone()
+    return row and row[0]
+
+
+def add_click(conn, token, agent=None):
+    with tx(conn):
+        conn.execute("INSERT INTO clicks (token, at, agent) VALUES (?,?,?)",
+                     (token, clock.iso(), _text(agent)[:200] if agent else None))
+
+
+# ---------- the funnel (14): the person's variant, steps, taps, follow checks ----------
+
+def _new_token():
+    return "".join(random.SystemRandom().choice("abcdefghijkmnpqrstuvwxyz23456789") for _ in range(10))
+
+
+def _tokens(conn, cfg, comment_id, media_id, variant, urls, first_position):
+    """Tracked tokens for these URLs (14.2 `click_base`), one per position, made once and reused."""
+    out = []
+    for offset, url in enumerate(urls):
+        position = first_position + offset
+        row = conn.execute("SELECT token FROM links WHERE comment_id=? AND position=?",
+                           (comment_id, position)).fetchone()
+        if row is None:
+            token = _new_token()
+            conn.execute("INSERT INTO links (token, comment_id, media_id, variant, position, url, created_at) "
+                         "VALUES (?,?,?,?,?,?,?)", (token, comment_id, media_id, variant, position, url, clock.iso()))
+            out.append(token)
+        else:
+            out.append(row[0])
+    return out
+
+
+def _flow_claim(conn, cfg, reel, row, now):
+    """14.3, inside the DM claim: the person's variant and the `flow` row; tracked token of a link-in-first-DM.
+    (None, ()) for a reel without flow. A comment claimed again after `not_sent` keeps its variant."""
+    if reel.flow is None:
+        return None, ()
+    existing = conn.execute("SELECT variant FROM flow WHERE comment_id=?", (row["comment_id"],)).fetchone()
+    names = {v.name: v for v in reel.flow.variants}
+    variant = names.get(existing[0]) if existing else None
+    if variant is None:
+        variant = reel.flow.variant(row["media_id"], row["user_id"])
+        conn.execute("INSERT OR REPLACE INTO flow (comment_id, media_id, variant, opening, gate, state, created_at) "
+                     "VALUES (?,?,?,?,?,?,?)", (row["comment_id"], row["media_id"], variant.name, int(variant.opening),
+                                                int(variant.gate), "opened" if variant.opening else "direct", now))
+    tokens = ()
+    if not variant.opening and cfg.click_base:
+        tokens = tuple(_tokens(conn, cfg, row["comment_id"], row["media_id"], variant.name, [reel.link], 0))
+    return variant.name, tokens
+
+
+def flow_row(conn, comment_id):
+    return conn.execute("SELECT * FROM flow WHERE comment_id=?", (comment_id,)).fetchone()
+
+
+def claim_step(conn, comment_id, step, cfg, me, urls=()):
+    """14.4: claim one step POST, committed before it leaves. `urls`: the link buttons' URLs (step `link`), made
+    tracked here when `click_base` is set; the claim returns the URLs to send."""
+    _outside_tx(conn)
+    with tx(conn):
+        flow = flow_row(conn, comment_id)
+        if flow is None or not flow["igsid"]:
+            return StepClaim("skip")
+        if not (me and me.get("user_id")):
+            return StepClaim("no_identity")
+        now = clock.now()
+        gate = _closed_gate(conn, cfg, now)
+        if gate:
+            return StepClaim(gate)
+        tried = conn.execute("SELECT 1 FROM attempts WHERE comment_id=? AND kind='step' AND detail=? "
+                             "AND outcome IS NOT 'not_sent' LIMIT 1", (comment_id, step)).fetchone()
+        if tried:
+            return StepClaim("skip")   # one POST per step: an unclear answer is never sent again
+        since = clock.iso(now - timedelta(seconds=T["rate_window"]))
+        if conn.execute("SELECT COUNT(*) FROM attempts WHERE kind='step' AND started_at>?",
+                        (since,)).fetchone()[0] >= T["step_cap"]:
+            return StepClaim("cap")
+        attempt_id = conn.execute("INSERT INTO attempts (comment_id, kind, detail, started_at) VALUES (?, 'step', ?, ?)",
+                                  (comment_id, step, clock.iso(now))).lastrowid
+        if urls and cfg.click_base:
+            urls = tuple(cfg.click_base + token for token in
+                         _tokens(conn, cfg, comment_id, flow["media_id"], flow["variant"], urls, 1))
+        return StepClaim("claimed", attempt_id, tuple(urls))
+
+
+def record_step(conn, attempt_id, result):
+    """Journal the answer to a step and move the person on when it was delivered. Returns the outcome."""
+    with tx(conn):
+        answer = _answer(result, "message_id")
+        row = conn.execute("SELECT detail FROM attempts WHERE id=?", (attempt_id,)).fetchone()
+        comment_id = _close(conn, attempt_id, "step", answer)
+        if answer["outcome"] == "ok":
+            now, step = clock.iso(), row[0]
+            if step == "link":
+                conn.execute("UPDATE flow SET state='linked', link_at=? WHERE comment_id=?", (now, comment_id))
+            elif step.startswith("prompt"):
+                conn.execute("UPDATE flow SET state='gate', prompts=? WHERE comment_id=?", (int(step[6:]), comment_id))
+            elif step == "followup":
+                conn.execute("UPDATE flow SET followup_at=? WHERE comment_id=?", (now, comment_id))
+        _hold_after(conn, "step", answer["outcome"], answer["reason"])
+        return answer["outcome"]
+
+
+def flow_tap(conn, comment_id, igsid):
+    """14.5: a tap on a button of this comment's flow. 'ok', 'unknown_comment' or 'other_sender'."""
+    with tx(conn):
+        flow = flow_row(conn, comment_id)
+        if flow is None:
+            return "unknown_comment"
+        if flow["igsid"] and flow["igsid"] != igsid:
+            return "other_sender"
+        now = clock.iso()
+        conn.execute("UPDATE flow SET igsid=?, pressed_at=COALESCE(pressed_at, ?), last_in_at=? WHERE comment_id=?",
+                     (igsid, now, now, comment_id))
+        return "ok"
+
+
+def flow_message(conn, igsid):
+    """14.5: the person wrote to the account: their 24 h window is open again."""
+    with tx(conn):
+        return conn.execute("UPDATE flow SET last_in_at=? WHERE igsid=?", (clock.iso(), igsid)).rowcount
+
+
+def flow_stuck(conn, comment_id):
+    with tx(conn):
+        conn.execute("UPDATE flow SET state='stuck' WHERE comment_id=? AND state<>'linked'", (comment_id,))
+
+
+def add_check(conn, comment_id, purpose, result):
+    """14.5: one follow check: `result` yes|no|unknown. A recheck that says `no` marks the unfollow."""
+    with tx(conn):
+        now = clock.iso()
+        conn.execute("INSERT INTO checks (comment_id, at, purpose, result) VALUES (?,?,?,?)",
+                     (comment_id, now, purpose, result))
+        conn.execute("UPDATE flow SET follow=? WHERE comment_id=?", (result, comment_id))
+        if purpose.startswith("recheck") and result == "no":
+            conn.execute("UPDATE flow SET unfollowed_at=COALESCE(unfollowed_at, ?) WHERE comment_id=?",
+                         (now, comment_id))
+
+
+def inbound_done(conn, inbound_id, result):
+    with tx(conn):
+        conn.execute("UPDATE inbound SET handled_at=?, result=? WHERE id=? AND handled_at IS NULL",
+                     (clock.iso(), result, inbound_id))

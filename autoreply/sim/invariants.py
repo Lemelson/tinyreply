@@ -938,7 +938,9 @@ def _lost_alerts(w, telegram_since, within):
     """Accepted complete count events cover losses; mentions, queued rows and repeated totals do not."""
     if telegram_since is None:
         return []
-    populations = _group([row for row in w.rows.values() if row["status"] in _LOST_PAYLOAD], "status")
+    # `expired`/`too_old`: already past the window when first seen, nobody was let down (SPEC 9, R5-01)
+    populations = _group([row for row in w.rows.values() if row["status"] in _LOST_PAYLOAD
+                          and not (row["status"] == "expired" and row["reason"] == "too_old")], "status")
     # While windows keep closing, `expired` is said at most once per alerts.repeat_min (engine._lost_people).
     paced = 60 * max((config.get("alerts") or {}).get("repeat_min", 0) for _, config in w.configs)
     waiting = defaultdict(list)

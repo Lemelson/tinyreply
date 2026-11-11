@@ -292,6 +292,12 @@ class Durations(unittest.TestCase):
             "report_dm_history": 24 * HOUR,                                # 9
             "refusals_within": 24 * HOUR,                                  # 9
             "followers_ago": (24 * HOUR, 7 * DAY),                         # 9
+            "step_cap": 200,                                               # 14.4
+            "inbound_stale": 10 * MIN,                                     # 14.5
+            "inbound_max_age": 24 * HOUR,                                  # 14.5
+            "followup_window": 23 * HOUR,                                  # 14.4
+            "recheck_after": (DAY, 7 * DAY),                               # 14.5
+            "max_prompts": 3,                                              # 14.4
             "poll_interval_min": 30,                                       # 4
             "poll_interval_max": 5 * MIN,                                  # 4
             "lock_wait_run": 60,                                           # 3

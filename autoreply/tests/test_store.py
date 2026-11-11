@@ -216,7 +216,9 @@ class Opening(Db):
 
     def test_init_creates_exactly_the_schema_of_the_spec(self):
         with open(os.path.join(CODE, "SPEC.md"), encoding="utf-8") as spec:
-            sql = re.search(r"## 7\. Database.*?```sql\n(.*?)```", spec.read(), re.S).group(1)
+            text = spec.read()
+            sql = re.search(r"## 7\. Database.*?```sql\n(.*?)```", text, re.S).group(1) + \
+                re.search(r"### 14\.6 Tables.*?```sql\n(.*?)```", text, re.S).group(1)
         wanted = sqlite3.connect(os.path.join(self.dir, "spec.db"))
         self.addCleanup(wanted.close)
         wanted.executescript(re.sub(r"--[^\n]*", "", sql))
@@ -226,8 +228,22 @@ class Opening(Db):
                     conn.execute("SELECT name, sql FROM sqlite_master WHERE sql IS NOT NULL")}
 
         self.assertEqual(shape(self.conn), shape(wanted))
-        self.assertEqual(len(shape(self.conn)), 10)   # 6 tables, 4 indexes
-        self.assertEqual(self.conn.execute("PRAGMA user_version").fetchone()[0], 2)
+        self.assertEqual(len(shape(self.conn)), 20)   # 6 + 5 tables, 4 + 5 indexes
+        self.assertEqual(self.conn.execute("PRAGMA user_version").fetchone()[0], 3)
+
+    def test_init_upgrades_a_version_2_database_by_adding_the_funnel_tables_only(self):
+        path = os.path.join(self.dir, "v2.db")
+        conn = self.open(path)
+        for statement in store._SCHEMA.split(";"):
+            conn.execute(statement)
+        conn.execute("PRAGMA user_version=2")
+        conn.execute("INSERT INTO kv (key, value) VALUES ('send_budget', '7')")
+        self.assertFalse(store.init(conn))   # not a fresh database: nothing of version 2 is touched
+        self.assertEqual(conn.execute("PRAGMA user_version").fetchone()[0], 3)
+        self.assertEqual(store.kv_get(conn, "send_budget"), "7")
+        self.assertIsNone(store.kv_get(conn, "fresh_db"))
+        names = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        self.assertTrue({"flow", "checks", "inbound", "links", "clicks"} <= names)
 
     def test_init_runs_once_and_marks_the_new_database_fresh(self):
         self.assertEqual(store.kv_get(self.conn, "fresh_db"), "1")
@@ -247,7 +263,7 @@ class Opening(Db):
         path = os.path.join(self.dir, "other.db")
         conn = self.open(path)
         conn.execute("CREATE TABLE things (id)")
-        conn.execute("PRAGMA user_version=3")
+        conn.execute("PRAGMA user_version=4")
         with self.assertRaises(RuntimeError):
             store.init(conn)
         self.assertFalse(conn.in_transaction)

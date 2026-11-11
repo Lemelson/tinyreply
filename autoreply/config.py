@@ -34,6 +34,66 @@ class ConfigError(Exception):
 
 
 @dataclass(frozen=True)
+class Opening:            # 14.2: the first DM as a button template
+    text: str
+    button: str
+
+
+@dataclass(frozen=True)
+class Gate:               # 14.2: the follow check after a tap
+    text: str
+    button: str
+    profile_button: str
+    again: str
+
+
+@dataclass(frozen=True)
+class Button:
+    title: str
+    url: str
+
+
+@dataclass(frozen=True)
+class Link:               # 14.4: the link message (after a tap)
+    text: str
+    buttons: tuple
+
+
+@dataclass(frozen=True)
+class Followup:
+    text: str
+    after_minutes: int
+
+
+@dataclass(frozen=True)
+class Variant:            # 14.2/14.3: one arm of the A/B test
+    name: str
+    weight: int
+    opening: bool
+    gate: bool
+    text: str = None      # first-DM text of this variant when it has no button; None = the reel's text
+
+
+@dataclass(frozen=True)
+class Flow:
+    variants: tuple
+    opening: Opening = None
+    gate: Gate = None
+    link: Link = None
+    followup: Followup = None
+
+    def variant(self, media_id, user_id):
+        """14.3: the variant of a person, weighted and stable: the same person under the same reel gets the same."""
+        digest = int.from_bytes(hashlib.sha256(f"{media_id}:{user_id}".encode("utf-8")).digest()[:8], "big")
+        point = digest % sum(v.weight for v in self.variants)
+        for variant in self.variants:
+            if point < variant.weight:
+                return variant
+            point -= variant.weight
+        return self.variants[-1]
+
+
+@dataclass(frozen=True)
 class Reel:
     name: str
     media_id: str
@@ -44,6 +104,7 @@ class Reel:
     max_words: int
     link: str
     text: str
+    flow: Flow = None     # 14: None = the reel of sections 1-13, one text DM
 
 
 @dataclass(frozen=True)
@@ -66,6 +127,7 @@ class Config:
     public_phrases: tuple
     reels: tuple
     alerts: Alerts
+    click_base: str = ""  # 14.2: tracked links go through click_base + token; "" = links are sent as they are
 
     @property
     def reel_by_media(self):
@@ -73,12 +135,56 @@ class Config:
         return {reel.media_id: reel for reel in self.reels}
 
 
-def render(cfg, reel, late):
-    """The JSON `message` object of the DM. Pure. Only {greeting} and {link} are placeholders."""
+def render(cfg, reel, late, variant=None):
+    """The JSON `message` object of the DM. Pure. Only {greeting} and {link} are placeholders. The text goes out as
+    written; only when it lacks the reel's link is the link added on a line of its own (preview/index.html shows
+    the same). `variant` (14.3): a variant without a button may bring its own text."""
     greeting = cfg.late_greeting if late else cfg.greeting
-    body = reel.text.replace("{greeting}", greeting).replace("{link}", reel.link)
-    link_line = "" if reel.link in body else reel.link + "\n"
-    return {"text": f"{body}\n\n{link_line}Подписаться: {cfg.profile_url}"}
+    text = variant.text if variant is not None and variant.text else reel.text
+    body = text.replace("{greeting}", greeting).replace("{link}", reel.link)
+    return {"text": body if reel.link in body else f"{body}\n\n{reel.link}"}
+
+
+TEMPLATE_TEXT_MAX_BYTES = 640    # Meta: the text of a button template
+
+
+def _template(text, buttons):
+    return {"attachment": {"type": "template", "payload": {
+        "template_type": "button", "text": text, "buttons": list(buttons)}}}
+
+
+def render_opening(cfg, reel, late, comment_id):
+    """14.3: the first DM with the «Получить» button. Pure string work only (it runs between claim and POST)."""
+    greeting = cfg.late_greeting if late else cfg.greeting
+    opening = reel.flow.opening
+    return _template(opening.text.replace("{greeting}", greeting),
+                     [{"type": "postback", "title": opening.button, "payload": "g:" + comment_id}])
+
+
+def link_buttons(reel):
+    """14.4: [(title, url)] of the link message, untracked."""
+    link = reel.flow.link if reel.flow else None
+    return [(b.title, b.url) for b in link.buttons] if link else [("Открыть", reel.link)]
+
+
+def render_link(reel, urls):
+    """14.4 step `link`: `urls` are the URLs to put on the buttons (tracked or not), in the order of link_buttons."""
+    link = reel.flow.link if reel.flow else None
+    text = link.text if link else reel.name
+    return _template(text, [{"type": "web_url", "title": title, "url": url}
+                            for (title, _), url in zip(link_buttons(reel), urls)])
+
+
+def render_prompt(cfg, reel, n, comment_id):
+    """14.4 step `promptN`: ask for the follow; «Готово» comes back as payload d:<comment_id>."""
+    gate = reel.flow.gate
+    return _template(gate.text if n == 1 else gate.again, [
+        {"type": "web_url", "title": gate.profile_button, "url": cfg.profile_url},
+        {"type": "postback", "title": gate.button, "payload": "d:" + comment_id}])
+
+
+def render_followup(reel):
+    return {"text": reel.flow.followup.text}
 
 
 # ---------- validation rules: rule(value) -> None, or what is wrong ----------
@@ -186,6 +292,7 @@ _REEL = {
     "max_words": _whole(1),
     "link": _https,
     "text": _filled_text,
+    "flow": _is_a(dict, "must be an object"),   # optional (14.2); checked in depth by _flow
 }
 _ALERTS = {
     "repeat_min": _whole(1, WEEK_MINUTES),
@@ -193,8 +300,93 @@ _ALERTS = {
 }
 
 
-def _check(obj, rules, where, problems):
-    """Check one JSON object against its rules: append every problem, return the values that passed."""
+def _click_base(value):
+    return None if _https(value) is None and value.endswith("/r/") else 'must be an https:// URL ending in "/r/"'
+
+
+_TOP["click_base"] = _click_base   # optional (14.2)
+
+
+def _title(value):
+    return None if _filled_text(value) is None and len(value) <= 20 else "must be a text of 1 to 20 characters"
+
+
+def _template_text(value):
+    if _filled_text(value):
+        return "must be a non-empty text"
+    size = len(value.replace("{greeting}", "").encode("utf-8"))
+    return None if size <= TEMPLATE_TEXT_MAX_BYTES else f"has {size} UTF-8 bytes, Meta's limit is {TEMPLATE_TEXT_MAX_BYTES}"
+
+
+def _variant_name(value):
+    return None if isinstance(value, str) and re.fullmatch(r"[A-Za-z0-9]{1,12}", value) else \
+        "must be 1 to 12 latin letters or digits"
+
+
+def _buttons(value):
+    if not isinstance(value, list) or not 1 <= len(value) <= 2:
+        return "must be a list of 1 or 2 buttons"
+    for item in value:
+        if not isinstance(item, dict) or set(item) != {"title", "url"} or _title(item["title"]) or _https(item["url"]):
+            return 'each button is {"title": 1-20 characters, "url": "https://…"}'
+    return None
+
+
+_FLOW_PARTS = {
+    "opening": ({"text": _template_text, "button": _title}, Opening),
+    "gate": ({"text": _template_text, "button": _title, "profile_button": _title, "again": _template_text}, Gate),
+    "link": ({"text": _template_text, "buttons": _buttons}, Link),
+    "followup": ({"text": _filled_text, "after_minutes": _whole(1, 1380)}, Followup),
+}
+_VARIANT = {"name": _variant_name, "weight": _whole(1, 100), "opening": _flag, "gate": _flag, "text": _filled_text}
+
+
+def _flow(raw, where, problems, texts):
+    """14.2: the Flow of a reel's `flow` object, or None with the problems appended. `texts` collects
+    (where, text) of every text the bot will send, for the own-words rule of section 4."""
+    before = len(problems)
+    top = _check(raw, {**{key: _is_a(dict, "must be an object") for key in _FLOW_PARTS},
+                       "variants": _is_a(list, "must be a list")}, where, problems, optional=tuple(_FLOW_PARTS))
+    parts = {}
+    for key, (rules, kind) in _FLOW_PARTS.items():
+        if key in top:
+            passed = _check(top[key], rules, f"{where}{key}.", problems)
+            if len(passed) == len(rules):
+                if kind is Link:
+                    passed["buttons"] = tuple(Button(**b) for b in passed["buttons"])
+                parts[key] = kind(**passed)
+                for name in ("text", "again"):
+                    if name in passed:
+                        texts.append((f"{where}{key}.{name}", passed[name]))
+    variants, names = [], set()
+    if "variants" in top and not 1 <= len(top["variants"]) <= 4:
+        problems.append(f"{where}variants: must hold 1 to 4 variants")
+    for index, item in enumerate(top.get("variants", [])):
+        at = f"{where}variants[{index}]"
+        passed = _check(item, _VARIANT, at + ".", problems, optional=("text",))
+        if len(passed) < len(_VARIANT) - 1:
+            continue
+        variant = Variant(**passed)
+        if variant.name in names:
+            problems.append(f"{at}.name: duplicate {variant.name!r}")
+        names.add(variant.name)
+        if variant.opening and "opening" not in parts:
+            problems.append(f"{at}: opening is true, so flow.opening is needed")
+        if variant.gate and not variant.opening:
+            problems.append(f"{at}: gate needs opening: the follow can only be checked after a tap")
+        if variant.gate and "gate" not in parts:
+            problems.append(f"{at}: gate is true, so flow.gate is needed")
+        if variant.text is not None and variant.opening:
+            problems.append(f"{at}.text: a variant with the button sends flow.opening.text; leave text out")
+        variants.append(variant)
+    if len(problems) > before:
+        return None
+    return Flow(variants=tuple(variants), **parts)
+
+
+def _check(obj, rules, where, problems, optional=()):
+    """Check one JSON object against its rules: append every problem, return the values that passed.
+    `optional`: keys that may be left out (only the additions of section 14 are)."""
     if not isinstance(obj, dict):
         problems.append(f"{where.rstrip('.') or 'config'}: must be an object")
         return {}
@@ -202,7 +394,8 @@ def _check(obj, rules, where, problems):
     passed = {}
     for key, rule in rules.items():
         if key not in obj:
-            problems.append(f"{where}{key}: missing")
+            if key not in optional:
+                problems.append(f"{where}{key}: missing")
         elif (error := rule(obj[key])):
             problems.append(f"{where}{key}: {error}")
         else:
@@ -222,14 +415,14 @@ def _unique_keys(pairs):
 def _validate(raw):
     """(Config or None, problems). Each check runs on every part that passed the checks it builds on."""
     problems = []
-    top = _check(raw, _TOP, "", problems)
+    top = _check(raw, _TOP, "", problems, optional=("click_base",))
     alerts = _check(top["alerts"], _ALERTS, "alerts.", problems) if "alerts" in top else {}
 
-    reels, matchers, messages = [], [], []
+    reels, matchers, messages, flow_texts = [], [], [], []
     used = {"name": set(), "media_id": set()}
     for index, item in enumerate(top.get("reels", [])):
         where = f"reels[{index}]"
-        passed = _check(item, _REEL, where + ".", problems)
+        passed = _check(item, _REEL, where + ".", problems, optional=("flow",))
         for key, values in used.items():
             if key in passed:
                 if passed[key] in values:
@@ -246,14 +439,24 @@ def _validate(raw):
                                     f"request by the reel's own matcher: {dead!r}")
         if passed.keys() >= {"text", "link"}:
             messages.append((where, SimpleNamespace(**passed)))
-        if len(passed) == len(_REEL):
+        flow = _flow(item["flow"], where + ".flow.", problems, flow_texts) \
+            if isinstance(item, dict) and item.get("flow") is not None else None
+        if flow is not None and "link" in passed:
+            for index_v, variant in enumerate(flow.variants):
+                if variant.text is not None:
+                    messages.append((f"{where}.flow.variants[{index_v}]",
+                                     SimpleNamespace(**{**passed, "text": variant.text})))
+        if len(passed) == len(_REEL) - ("flow" not in item):
             reels.append(Reel(**{**passed, "keywords": tuple(passed["keywords"]),
-                                 "also_match": tuple(passed["also_match"])}))
+                                 "also_match": tuple(passed["also_match"]), "flow": flow}))
 
     def reject_own_words(where, text):
         for reel_where, matcher in matchers:
             if matcher.check(text)[0] == "match":
                 problems.append(f"{where}: the matcher of {reel_where} would take the bot's own words for a request")
+
+    for where, text in flow_texts:
+        reject_own_words(where, text)
 
     if "public_phrases" in top:
         if top.get("public_reply") is True and len(set(top["public_phrases"])) < 2:
@@ -277,7 +480,7 @@ def _validate(raw):
     if problems:
         return None, problems
     return Config(**{**top, "public_phrases": tuple(top["public_phrases"]), "reels": tuple(reels),
-                     "alerts": Alerts(**alerts)}), problems
+                     "alerts": Alerts(**alerts), "click_base": top.get("click_base", "")}), problems
 
 
 def load(path):
@@ -300,7 +503,18 @@ def loads(text):
 def dump(cfg):
     """A Config as the text of a config file: loads(dump(cfg)) == cfg. The service stores the one it runs with
     (kv `config_running`), so that the report describes the service and not the file on disk (9)."""
-    return json.dumps(asdict(cfg), ensure_ascii=False, sort_keys=True)
+    raw = asdict(cfg)
+    if not raw["click_base"]:
+        del raw["click_base"]   # a config without section 14 dumps (and hashes) as it did before
+    for reel in raw["reels"]:
+        if reel["flow"] is None:
+            del reel["flow"]
+        else:
+            reel["flow"] = {key: value for key, value in reel["flow"].items() if value is not None}
+            for variant in reel["flow"]["variants"]:
+                if variant["text"] is None:
+                    del variant["text"]
+    return json.dumps(raw, ensure_ascii=False, sort_keys=True)
 
 
 def fingerprint(cfg):

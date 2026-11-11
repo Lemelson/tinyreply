@@ -111,7 +111,9 @@ class NewCodeDisarms(Case):
         self.assertEqual(len(engine.code_fingerprint()), 64)
         self.assertEqual(engine.code_fingerprint(), engine.code_fingerprint())
         self.assertEqual(sorted(engine._MODULES), sorted(name[:-3] for name in os.listdir(os.path.dirname(engine.__file__))
-                                                         if name.endswith(".py") and name != "__init__.py"))
+                                                         if name.endswith(".py") and name != "__init__.py"
+                                                         and name not in ("web.py", "panel.py")))
+        # web.py and panel.py (SPEC 14.1) never send: a change there must not disarm the bot
 
 
 class LostPeopleArePaced(Case):
@@ -127,7 +129,7 @@ class LostPeopleArePaced(Case):
             self.add(f"b{number}", "expired")
             bot._lost_people()
         self.assertEqual(len(self.said("expired")), 1)
-        self.assertEqual(int(store.kv_get(self.conn, "told_expired")), 1)       # the untold ones are still owed
+        self.assertEqual(int(store.kv_get(self.conn, "told_lost")), 1)       # the untold ones are still owed
         self.advance(120 * 60)
         bot._lost_people()
         lines = self.said("expired")
