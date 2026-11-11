@@ -380,26 +380,27 @@ def report():
 
 # ---------------------------------------------------------------- matcher
 def matcher():
-    # Results of match.Matcher(reel).check(text) with config.example.json (keywords арена, arena),
-    # printed by the code on 11 Nov 2026. "Арена" is the Russian word for "arena".
-    rows = [("Арена", "match", "the keyword"),
-            ("Aрена", "match", "Latin A inside a Cyrillic word"),
-            ("ARENA", "match", "case and alphabet do not matter"),
-            ("аренааа 🔥", "match", "repeated letters, emoji"),
-            ("хочу арену", "match", "“I want the arena”: word forms"),
-            ("@friend арена", "match", "@mentions are ignored"),
-            ("арееа", "match", "a typo you listed in also_match"),
-            ("Арена?", "match", "a lone keyword with “?” is a request"),
-            ("зачем арена?", "near", "a question: listed in the report, not sent"),
-            ("дайте пожалуйста арену очень надо спасибо", "near", "longer than max_words (5)"),
-            ("Арина", "none", "a name that looks alike: not a match"),
-            ("классный ролик", "none", "“nice reel”: no keyword")]
+    # Results of match.Matcher(reel).check(text) for a reel with keywords ["guide"] and also_match ["gude"]
+    # (otherwise config.example.json), printed by the code on 11 Nov 2026.
+    rows = [("guide", "match", "the keyword"),
+            ("GUIDE", "match", "case does not matter"),
+            ("Guide!!", "match", "punctuation is ignored"),
+            ("guiiide 🔥", "match", "repeated letters, emoji"),
+            ("I want the guide", "match", "the keyword inside a short sentence"),
+            ("@friend guide", "match", "@mentions are ignored"),
+            ("guid\u0435", "match", "a look-alike Cyrillic “е” typed inside"),
+            ("gude", "match", "a typo you listed in also_match"),
+            ("guide?", "match", "a lone keyword with “?” is a request"),
+            ("is the guide free?", "near", "a question: listed in the report, not sent"),
+            ("send me the guide please I really need it", "near", "longer than max_words (5)"),
+            ("guidance", "none", "a different word: not a match"),
+            ("nice reel", "none", "no keyword")]
     W = 1200
     top, rh = 128, 44
     H = top + rh * len(rows) + 40
     b = [card(W, H)]
-    b.append(text(44, 60, "Keyword matching on real comments", 26, INK, 800))
-    b.append(text(44, 90, "Keywords “арена”, “arena”. Every row below is the actual output of match.py.", 16, MUTED))
+    b.append(text(44, 60, "What the keyword matcher does", 26, INK, 800))
+    b.append(text(44, 90, "Keyword “guide”. Every row below is the actual output of match.py.", 16, MUTED))
     chip = {"match": (GREEN, GREEN_SOFT, "gets DM", "check"),
             "near": (AMBER, AMBER_SOFT, "flagged", "triangle-alert"),
             "none": (FAINT, SOFT, "ignored", "x")}
@@ -413,7 +414,7 @@ def matcher():
         b.append(icon(ic, 572, y - 15, 18, col, 2.5))
         b.append(text(596, y - 1, label, 14, col, 700))
         b.append(text(700, y, why, 15, MUTED))
-    b.append(text(44, H - 26, "All 20 distinct texts of 1,108 real comments under a live reel match (tests/data/real_comment_texts.json).", 14, FAINT))
+    b.append(text(44, H - 26, "Also tested on 1,108 real comments from a live reel (Russian and English spellings): every one matched.", 14, FAINT))
     write("matcher.svg", svg(W, H, "".join(b)))
 
 
