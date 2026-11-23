@@ -1,0 +1,970 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>tinyreply — Free Self-Hosted ManyChat Alternative (Instagram Comment-to-DM)</title>
+  <meta name="description" content="Free, open-source, self-hosted ManyChat alternative for Instagram comment-to-DM automation. One Python process, SQLite, 32 MB RAM, 0 dependencies, 0 open ports, 1,147 tests.">
+  <meta name="keywords" content="ManyChat alternative, free ManyChat alternative, self-hosted Instagram autoresponder, Instagram comment to DM bot, Instagram Reels automation, Meta Instagram API, open source ManyChat">
+  <meta name="author" content="Artem Lemelson">
+  <meta name="theme-color" content="#F7F5F0">
+  <link rel="canonical" href="https://lemelson.github.io/tinyreply/">
+
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='1' x2='1' y2='0'%3E%3Cstop offset='0' stop-color='%23f58529'/%3E%3Cstop offset='0.5' stop-color='%23dd2a7b'/%3E%3Cstop offset='1' stop-color='%234f46e5'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='8' fill='%2314131a'/%3E%3Cpath d='M8 12.5C8 10.6 9.6 9 11.5 9h9C22.4 9 24 10.6 24 12.5v5c0 1.9-1.6 3.5-3.5 3.5H15l-4.2 3.1c-.4.3-1 0-1-.5V21C8.7 20.4 8 19 8 17.5v-5z' fill='url(%23g)'/%3E%3C/svg%3E">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="tinyreply">
+  <meta property="og:url" content="https://lemelson.github.io/tinyreply/">
+  <meta property="og:title" content="tinyreply — Free Self-Hosted ManyChat Alternative (Instagram Comment-to-DM)">
+  <meta property="og:description" content="One Python process, SQLite, 32 MB RAM, 0 dependencies, 0 open ports, 1,147 tests. Official Meta API comment-to-DM autoresponder for creators.">
+  <meta property="og:image" content="https://lemelson.github.io/tinyreply/screenshots/og-card.png">
+  <meta property="og:image:width" content="1280">
+  <meta property="og:image:height" content="640">
+  <meta property="og:image:alt" content="tinyreply dashboard showing Instagram comment-to-DM funnel, delivery alerts, and 32 MB RAM footprint">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="tinyreply — Free Self-Hosted ManyChat Alternative">
+  <meta name="twitter:description" content="Instagram comment-to-DM autoresponder in one Python process. $0/mo, 32 MB RAM, 0 dependencies, 0 open ports, 1,147 tests.">
+  <meta name="twitter:image" content="https://lemelson.github.io/tinyreply/screenshots/og-card.png">
+
+  <!-- Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "tinyreply",
+    "alternateName": "tinyreply Instagram Comment-to-DM Autoresponder",
+    "description": "Free self-hosted ManyChat alternative for Instagram comment-to-DM automation. Built on Meta's official Instagram API with Python 3.12 stdlib, SQLite, 32 MB RAM, zero third-party dependencies, and 1,147 tests.",
+    "url": "https://lemelson.github.io/tinyreply/",
+    "codeRepository": "https://github.com/Lemelson/tinyreply",
+    "downloadUrl": "https://github.com/Lemelson/tinyreply/releases/latest",
+    "softwareVersion": "2.0.0",
+    "applicationCategory": "BusinessApplication",
+    "operatingSystem": "Linux, macOS",
+    "license": "https://opensource.org/licenses/MIT",
+    "isAccessibleForFree": true,
+    "screenshot": "https://lemelson.github.io/tinyreply/screenshots/overview.png",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "author": {
+      "@type": "Person",
+      "name": "Artem Lemelson",
+      "url": "https://github.com/Lemelson"
+    }
+  }
+  </script>
+
+  <style>
+    :root {
+      --bg: #f7f5f0;
+      --surface: #ffffff;
+      --surface-subtle: #f1eee7;
+      --ink: #14131a;
+      --ink-muted: #52515f;
+      --ink-soft: #747384;
+      --border: rgba(20, 19, 26, 0.09);
+      --border-strong: rgba(20, 19, 26, 0.16);
+      --accent: #4f46e5;
+      --accent-hover: #4338ca;
+      --accent-soft: rgba(79, 70, 229, 0.1);
+      --ig-grad: linear-gradient(90deg, #f58529 0%, #dd2a7b 52%, #8134af 100%);
+      --dark-bg: #14131a;
+      --dark-card: #1d1c26;
+      --dark-border: rgba(255, 255, 255, 0.1);
+      --good: #15803d;
+      --good-bg: rgba(21, 128, 61, 0.1);
+      --radius-lg: 20px;
+      --radius-md: 14px;
+      --radius-sm: 10px;
+      --shadow-card: 0 1px 2px rgba(20, 19, 26, 0.04), 0 10px 32px rgba(20, 19, 26, 0.06);
+      --shadow-frame: 0 24px 64px rgba(20, 19, 26, 0.14), 0 2px 8px rgba(20, 19, 26, 0.06);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      --sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: var(--sans);
+      color: var(--ink);
+      background: var(--bg);
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    a { color: inherit; }
+    img { max-width: 100%; display: block; }
+
+    .wrap {
+      width: min(1120px, calc(100% - 40px));
+      margin-inline: auto;
+    }
+
+    /* Header */
+    .site-header {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      background: rgba(247, 245, 240, 0.86);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 64px;
+      gap: 16px;
+    }
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      font-weight: 800;
+      font-size: 1.15rem;
+      letter-spacing: -0.03em;
+    }
+    .brand-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: var(--ig-grad);
+      flex-shrink: 0;
+    }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      font-size: 0.92rem;
+      font-weight: 500;
+      color: var(--ink-muted);
+    }
+    .nav-links a {
+      text-decoration: none;
+      transition: color 0.15s ease;
+    }
+    .nav-links a:hover { color: var(--ink); }
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 11px 18px;
+      border-radius: 999px;
+      font-weight: 600;
+      font-size: 0.94rem;
+      text-decoration: none;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: transform 0.14s ease, background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+      white-space: nowrap;
+    }
+    .btn:active { transform: translateY(1px); }
+    .btn-primary {
+      background: var(--accent);
+      color: #ffffff;
+      box-shadow: 0 6px 20px rgba(79, 70, 229, 0.24);
+    }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-dark {
+      background: var(--dark-bg);
+      color: #ffffff;
+    }
+    .btn-dark:hover { background: #262533; }
+    .btn-ghost {
+      background: var(--surface);
+      color: var(--ink);
+      border-color: var(--border-strong);
+    }
+    .btn-ghost:hover { border-color: var(--ink); }
+    .btn-sm {
+      padding: 8px 14px;
+      font-size: 0.86rem;
+    }
+
+    /* Hero */
+    .hero {
+      padding: 64px 0 40px;
+    }
+    .hero-top {
+      max-width: 820px;
+      margin: 0 auto 42px;
+      text-align: center;
+    }
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      font-size: 0.84rem;
+      font-weight: 600;
+      color: var(--ink-muted);
+      margin-bottom: 20px;
+    }
+    .eyebrow-accent {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #16a34a;
+      box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.18);
+    }
+    h1 {
+      margin: 0 0 18px;
+      font-size: clamp(2.25rem, 5vw, 3.65rem);
+      line-height: 1.08;
+      letter-spacing: -0.04em;
+      font-weight: 800;
+    }
+    .ig-underline {
+      position: relative;
+      display: inline-block;
+    }
+    .ig-underline::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: -4px;
+      height: 4px;
+      border-radius: 999px;
+      background: var(--ig-grad);
+      opacity: 0.9;
+    }
+    .hero-sub {
+      margin: 0 auto 28px;
+      max-width: 680px;
+      font-size: clamp(1.04rem, 1.8vw, 1.2rem);
+      color: var(--ink-muted);
+      line-height: 1.6;
+    }
+    .hero-cta {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .hero-note {
+      font-size: 0.85rem;
+      color: var(--ink-soft);
+    }
+    .hero-note a {
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+
+    /* Metrics strip */
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 12px;
+      margin: 0 auto 32px;
+    }
+    .metric {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 18px 16px;
+      box-shadow: var(--shadow-card);
+    }
+    .metric-val {
+      font-size: 1.65rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+      margin-bottom: 4px;
+    }
+    .metric-label {
+      font-size: 0.82rem;
+      color: var(--ink-muted);
+      line-height: 1.35;
+    }
+
+    /* Interactive Screenshot Showcase */
+    .showcase {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      box-shadow: var(--shadow-frame);
+    }
+    .showcase-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 2px 6px 14px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 16px;
+    }
+    .tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .tab-btn {
+      appearance: none;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--ink-muted);
+      font-family: inherit;
+      font-size: 0.86rem;
+      font-weight: 600;
+      padding: 7px 13px;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    }
+    .tab-btn:hover {
+      color: var(--ink);
+      background: var(--surface-subtle);
+    }
+    .tab-btn.is-active {
+      background: var(--dark-bg);
+      color: #ffffff;
+    }
+    .showcase-caption {
+      font-size: 0.84rem;
+      color: var(--ink-soft);
+    }
+    .showcase-stage {
+      border-radius: 12px;
+      overflow: hidden;
+      background: #14131a;
+      border: 1px solid var(--border);
+    }
+    .showcase-stage img {
+      width: 100%;
+      height: auto;
+    }
+    .showcase-panel { display: none; }
+    .showcase-panel.is-active { display: block; }
+
+    /* Sections */
+    section.block {
+      padding: 68px 0 0;
+    }
+    .section-head {
+      max-width: 700px;
+      margin-bottom: 28px;
+    }
+    .section-kicker {
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 8px;
+    }
+    h2 {
+      margin: 0 0 10px;
+      font-size: clamp(1.65rem, 3vw, 2.3rem);
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+    }
+    .section-lead {
+      margin: 0;
+      color: var(--ink-muted);
+      font-size: 1.02rem;
+    }
+
+    /* Feature Grid */
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 22px;
+      box-shadow: var(--shadow-card);
+    }
+    .card h3 {
+      margin: 0 0 8px;
+      font-size: 1.05rem;
+      letter-spacing: -0.02em;
+    }
+    .card p {
+      margin: 0;
+      font-size: 0.93rem;
+      color: var(--ink-muted);
+    }
+    .tag {
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 3px 9px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      margin-bottom: 12px;
+    }
+
+    /* Visual Diagrams Row */
+    .diagram-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+      margin-top: 20px;
+    }
+    .diagram-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      box-shadow: var(--shadow-card);
+    }
+    .diagram-card img {
+      width: 100%;
+      border-radius: 10px;
+    }
+    .diagram-card figcaption {
+      margin-top: 10px;
+      font-size: 0.86rem;
+      color: var(--ink-muted);
+    }
+
+    /* Comparison Table */
+    .table-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow-x: auto;
+      box-shadow: var(--shadow-card);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 680px;
+      font-size: 0.92rem;
+    }
+    th, td {
+      padding: 14px 16px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    thead th {
+      font-size: 0.84rem;
+      font-weight: 700;
+      color: var(--ink-muted);
+      background: #fbfaf7;
+    }
+    thead th.hl, tbody td.hl {
+      background: rgba(79, 70, 229, 0.055);
+      color: var(--ink);
+    }
+    thead th.hl {
+      color: var(--accent);
+      font-size: 0.92rem;
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    .pill-yes {
+      display: inline-block;
+      padding: 2px 9px;
+      border-radius: 999px;
+      background: var(--good-bg);
+      color: var(--good);
+      font-weight: 700;
+      font-size: 0.82rem;
+    }
+
+    /* Quick Start */
+    .quickstart-box {
+      background: var(--dark-bg);
+      color: #f8fafc;
+      border-radius: var(--radius-lg);
+      padding: 32px;
+      box-shadow: var(--shadow-frame);
+    }
+    .qs-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+      gap: 28px;
+      align-items: start;
+    }
+    .qs-grid > * { min-width: 0; }
+    .quickstart-box h2 {
+      color: #ffffff;
+    }
+    .quickstart-box p {
+      color: #b4b2c4;
+      font-size: 0.95rem;
+    }
+    .req-list {
+      list-style: none;
+      padding: 0;
+      margin: 18px 0 24px;
+      display: grid;
+      gap: 10px;
+      font-size: 0.92rem;
+      color: #e2e0ee;
+    }
+    .req-list li {
+      display: flex;
+      gap: 10px;
+      align-items: baseline;
+    }
+    .req-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.12);
+      color: #ffffff;
+      font-size: 0.76rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .code-card {
+      background: #0d0c12;
+      border: 1px solid var(--dark-border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+    }
+    .code-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--dark-border);
+      font-size: 0.8rem;
+      color: #9c9ab0;
+      font-family: var(--mono);
+    }
+    .copy-btn {
+      appearance: none;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      background: rgba(255, 255, 255, 0.06);
+      color: #ffffff;
+      border-radius: 8px;
+      padding: 4px 10px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .copy-btn:hover { background: rgba(255, 255, 255, 0.14); }
+    pre {
+      margin: 0;
+      padding: 16px;
+      overflow-x: auto;
+      font-family: var(--mono);
+      font-size: 0.84rem;
+      line-height: 1.65;
+      color: #e8e6f5;
+    }
+    .c-dim { color: #7c7a91; }
+    .c-cmd { color: #c4b5fd; }
+
+    /* Footer */
+    footer {
+      padding: 56px 0 48px;
+      color: var(--ink-soft);
+      font-size: 0.88rem;
+    }
+    .foot-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+    }
+    .foot-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 18px;
+    }
+    .foot-links a {
+      text-decoration: none;
+      color: var(--ink-muted);
+      font-weight: 500;
+    }
+    .foot-links a:hover { color: var(--ink); }
+
+    @media (max-width: 960px) {
+      .metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .feature-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .qs-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 680px) {
+      .wrap { width: calc(100% - 28px); }
+      .nav-links { display: none; }
+      .hero { padding-top: 40px; }
+      .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .feature-grid, .diagram-grid { grid-template-columns: 1fr; }
+      .quickstart-box { padding: 22px 18px; }
+      .showcase { padding: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap nav-row">
+      <a class="brand" href="#">
+        <span class="brand-dot" aria-hidden="true"></span>
+        <span>tinyreply</span>
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="#features">Features</a>
+        <a href="#compare">vs ManyChat</a>
+        <a href="#quickstart">Quick Start</a>
+        <a href="demo/?lang=en">Live Demo</a>
+      </nav>
+      <div class="nav-actions">
+        <a class="btn btn-ghost btn-sm" href="demo/?lang=en">Try Demo</a>
+        <a class="btn btn-dark btn-sm" href="https://github.com/Lemelson/tinyreply">GitHub</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="wrap">
+        <div class="hero-top">
+          <div class="eyebrow">
+            <span class="eyebrow-accent" aria-hidden="true"></span>
+            Free &amp; Open-Source (MIT) · Official Meta Instagram API
+          </div>
+          <h1>Free self-hosted <span class="ig-underline">ManyChat alternative</span> for Instagram</h1>
+          <p class="hero-sub">
+            <strong>tinyreply</strong> is a lightweight Instagram comment-to-DM autoresponder built for one creator on one cheap VPS. Someone comments your keyword under a reel, and they get your link in DM — <strong>nobody gets messaged twice, and nobody is silently skipped.</strong>
+          </p>
+          <div class="hero-cta">
+            <a class="btn btn-primary" href="demo/?lang=en">▶ Try the Live Panel Demo</a>
+            <a class="btn btn-dark" href="https://github.com/Lemelson/tinyreply">View on GitHub</a>
+            <a class="btn btn-ghost" href="https://github.com/Lemelson/tinyreply/releases/latest">Download v2.0.0</a>
+          </div>
+          <p class="hero-note">
+            No credit card, no SaaS lock-in, no Docker stack. <a href="#quickstart">Runs in 5 minutes on Python 3.12+</a>.
+          </p>
+        </div>
+
+        <div class="metrics" aria-label="Key numbers">
+          <div class="metric">
+            <div class="metric-val">$0/mo</div>
+            <div class="metric-label">MIT open source, no per-contact fees</div>
+          </div>
+          <div class="metric">
+            <div class="metric-val">32 MB</div>
+            <div class="metric-label">RAM measured on a live Ubuntu server</div>
+          </div>
+          <div class="metric">
+            <div class="metric-val">0</div>
+            <div class="metric-label">third-party runtime dependencies</div>
+          </div>
+          <div class="metric">
+            <div class="metric-val">0 ports</div>
+            <div class="metric-label">outbound polling, no domain needed</div>
+          </div>
+          <div class="metric">
+            <div class="metric-val">1,147</div>
+            <div class="metric-label">unit + fault-injection simulator tests</div>
+          </div>
+        </div>
+
+        <div class="showcase" aria-label="Product screenshots">
+          <div class="showcase-bar">
+            <div class="tabs" role="tablist" aria-label="tinyreply views">
+              <button class="tab-btn is-active" role="tab" aria-selected="true" data-tab="overview">Web Panel</button>
+              <button class="tab-btn" role="tab" aria-selected="false" data-tab="reel">Reel &amp; A/B Preview</button>
+              <button class="tab-btn" role="tab" aria-selected="false" data-tab="analytics">Funnel Analytics</button>
+              <button class="tab-btn" role="tab" aria-selected="false" data-tab="dark">Dark Theme</button>
+              <button class="tab-btn" role="tab" aria-selected="false" data-tab="flow">Comment → DM</button>
+            </div>
+            <div class="showcase-caption" id="showcase-caption">
+              Optional read-only web dashboard (EN/RU) — live demo available with zero install.
+            </div>
+          </div>
+
+          <div class="showcase-stage">
+            <div class="showcase-panel is-active" data-panel="overview" data-caption="Optional read-only web dashboard (EN/RU) — live demo available with zero install.">
+              <img src="screenshots/overview.png" alt="tinyreply web panel overview showing today's DMs sent, alerts, funnel from request to click, and hourly sends">
+            </div>
+            <div class="showcase-panel" data-panel="reel" data-caption="Configure keywords, accepted typos, A/B DM variants, and see a live phone preview.">
+              <img src="screenshots/reel.png" alt="tinyreply reel configuration view with keyword matching, typos, A/B variants, and mobile DM preview" loading="lazy">
+            </div>
+            <div class="showcase-panel" data-panel="analytics" data-caption="Track the full path from comment to link click with plain-language A/B test verdicts.">
+              <img src="screenshots/analytics.png" alt="tinyreply analytics showing comment to click funnel, daily chart, and per-reel breakdown" loading="lazy">
+            </div>
+            <div class="showcase-panel" data-panel="dark" data-caption="Matches your system theme or toggles manually between light and dark mode.">
+              <img src="screenshots/overview-dark.png" alt="tinyreply web panel overview in dark theme" loading="lazy">
+            </div>
+            <div class="showcase-panel" data-panel="flow" data-caption="Comment a keyword under any Instagram Reel and receive the link in DM via Meta's official API.">
+              <img src="img/hero.svg" alt="tinyreply flow: comment a keyword, get the link in DM with 32 MB RAM and 0 dependencies" loading="lazy">
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="block" id="features">
+      <div class="wrap">
+        <div class="section-head">
+          <div class="section-kicker">Built for reliability</div>
+          <h2>One small program for one creator — not a 10-container agency platform</h2>
+          <p class="section-lead">
+            Most open-source ManyChat clones need Postgres, Redis, Node, SMTP, and a public webhook URL just to send a DM. tinyreply strips all of that away and focuses on delivery guarantees.
+          </p>
+        </div>
+
+        <div class="feature-grid">
+          <article class="card">
+            <span class="tag">Guarantee</span>
+            <h3>Never double-sends</h3>
+            <p>Each DM is claimed in SQLite <em>before</em> the HTTP request leaves. Crashes, restarts, or ambiguous Meta timeouts are marked <code>uncertain</code> and never blindly retried.</p>
+          </article>
+          <article class="card">
+            <span class="tag">Matching</span>
+            <h3>Understands real comments</h3>
+            <p><code>guide</code>, <code>GUIDE!!</code>, <code>guiiide 🔥</code>, <code>@friend guide</code>, and Latin/Cyrillic look-alikes all match. Verified on 1,108 real comments from a live reel.</p>
+          </article>
+          <article class="card">
+            <span class="tag">Backlog</span>
+            <h3>Serves the full 7-day window</h3>
+            <p>If your server was offline or a reel goes viral past the hourly rate limit, the queue drains oldest-first across Meta's full 7-day private reply window.</p>
+          </article>
+          <article class="card">
+            <span class="tag">Zero ports</span>
+            <h3>No webhooks or domain required</h3>
+            <p>The core bot polls Meta over outbound HTTPS only. Run it behind NAT or on a $3 VPS alongside other tools with zero open ports and zero TLS certs to renew.</p>
+          </article>
+          <article class="card">
+            <span class="tag">Optional funnel</span>
+            <h3>Buttons, follow checks &amp; A/B tests</h3>
+            <p>Add the optional stdlib <code>web.py</code> process when you want "Get it" buttons, follow gates, bot-filtered click tracking, A/B variants, and the web panel.</p>
+          </article>
+          <article class="card">
+            <span class="tag">Safety</span>
+            <h3>Armed manually, alerted in Telegram</h3>
+            <p>Fresh installs and config changes start with send budget 0. Nothing sends until you <code>arm</code> it, <code>disarm</code> stops immediately, and Telegram alerts repeat if anyone gets stuck.</p>
+          </article>
+        </div>
+
+        <div class="diagram-grid">
+          <figure class="diagram-card">
+            <img src="img/architecture.svg" alt="Architecture comparison: typical ManyChat clones require webhook, web app, worker, Postgres, Redis, and SMTP, while tinyreply is one Python process and one SQLite file" loading="lazy">
+            <figcaption><strong>One process + one SQLite file</strong> vs. a multi-service web stack.</figcaption>
+          </figure>
+          <figure class="diagram-card">
+            <img src="img/memory.svg" alt="Memory footprint comparison: tinyreply uses 32 MB RAM vs 350 to 700 MB for OpenReply and 2 GB+ for ChatbotX" loading="lazy">
+            <figcaption><strong>32 MB measured RAM</strong> — fits comfortably on the smallest VPS tier.</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section class="block" id="compare">
+      <div class="wrap">
+        <div class="section-head">
+          <div class="section-kicker">Comparison</div>
+          <h2>tinyreply vs ManyChat &amp; open-source alternatives</h2>
+          <p class="section-lead">
+            Honest trade-offs. Choose tinyreply if you run your own account and want rock-solid DM delivery on a $3 server; choose a SaaS if you never want to touch a Meta developer app.
+          </p>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Capability</th>
+                <th class="hl">tinyreply</th>
+                <th>ManyChat / ChatPlace</th>
+                <th>OpenReply</th>
+                <th>ChatbotX</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Price</strong></td>
+                <td class="hl"><span class="pill-yes">$0 / mo (MIT)</span></td>
+                <td>Monthly subscription</td>
+                <td>Free (MIT)</td>
+                <td>MIT + Enterprise</td>
+              </tr>
+              <tr>
+                <td><strong>Runtime &amp; stack</strong></td>
+                <td class="hl"><strong>1 Python process + SQLite</strong></td>
+                <td>Proprietary cloud</td>
+                <td>Node 20 + Postgres + Redis + SMTP</td>
+                <td>~10 services, TimescaleDB, S3</td>
+              </tr>
+              <tr>
+                <td><strong>Memory footprint</strong></td>
+                <td class="hl"><strong>32 MB RAM</strong> (measured)</td>
+                <td>SaaS</td>
+                <td>~350–700 MB (est.)</td>
+                <td>2 GB+ minimum</td>
+              </tr>
+              <tr>
+                <td><strong>Dependencies</strong></td>
+                <td class="hl"><strong>0 packages</strong> (Python stdlib)</td>
+                <td>—</td>
+                <td>14 runtime packages</td>
+                <td>200+ packages</td>
+              </tr>
+              <tr>
+                <td><strong>Public HTTPS / webhooks</strong></td>
+                <td class="hl"><strong>Not required</strong> (optional for funnel)</td>
+                <td>Managed</td>
+                <td>Required</td>
+                <td>Required</td>
+              </tr>
+              <tr>
+                <td><strong>7-day comment backlog</strong></td>
+                <td class="hl"><span class="pill-yes">Full 7 days</span></td>
+                <td>Varies by plan</td>
+                <td>Last 72 h, 30/pass</td>
+                <td>Manual, one post</td>
+              </tr>
+              <tr>
+                <td><strong>Cyrillic/Latin + typo matching</strong></td>
+                <td class="hl"><span class="pill-yes">Built-in</span></td>
+                <td>No</td>
+                <td>No</td>
+                <td>Partial</td>
+              </tr>
+              <tr>
+                <td><strong>A/B testing + click tracking</strong></td>
+                <td class="hl">Up to 4 variants, bot-filtered clicks</td>
+                <td>Paid plans</td>
+                <td>Clicks only</td>
+                <td>Traffic split, no report</td>
+              </tr>
+              <tr>
+                <td><strong>Test suite</strong></td>
+                <td class="hl"><strong>1,147 tests</strong> + fault simulator</td>
+                <td>Closed source</td>
+                <td>Standard</td>
+                <td>Standard</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="block" id="quickstart">
+      <div class="wrap">
+        <div class="quickstart-box">
+          <div class="qs-grid">
+            <div>
+              <div class="section-kicker" style="color:#a5b4fc;">Quick Start</div>
+              <h2>Running in 5 minutes on any Linux box or Mac</h2>
+              <p>Zero <code>pip install</code>, zero containers, zero build tools. Just Python 3.12+ and an Instagram Professional account connected to your Meta developer app.</p>
+              <ol class="req-list">
+                <li><span class="req-num">1</span><span>Clone the repo and drop your <code>IG_ACCESS_TOKEN</code> into <code>state/.env</code>.</span></li>
+                <li><span class="req-num">2</span><span>List recent reels with <code>bot.py media</code> and add keyword + DM text to <code>config.json</code>.</span></li>
+                <li><span class="req-num">3</span><span>Verify with <code>check --online</code> and dry-run <code>once</code> before arming your send budget.</span></li>
+              </ol>
+              <div style="display:flex;flex-wrap:wrap;gap:10px;">
+                <a class="btn btn-primary" href="https://github.com/Lemelson/tinyreply#quick-start">Full Setup Guide</a>
+                <a class="btn btn-ghost" style="background:rgba(255,255,255,0.08);color:#fff;border-color:rgba(255,255,255,0.18);" href="https://github.com/Lemelson/tinyreply/releases/latest">Download Release</a>
+              </div>
+            </div>
+
+            <div class="code-card">
+              <div class="code-head">
+                <span>bash — quick start</span>
+                <button class="copy-btn" type="button" id="copy-qs">Copy</button>
+              </div>
+              <pre id="qs-code"><span class="c-cmd">git clone</span> https://github.com/Lemelson/tinyreply.git
+<span class="c-cmd">cd</span> tinyreply/autoreply
+mkdir -p state &amp;&amp; chmod 700 state
+cp ../.env.example state/.env &amp;&amp; chmod 600 state/.env
+cp config.example.json state/config.json
+
+<span class="c-dim"># Verify token, list reels, dry-run without sending</span>
+<span class="c-cmd">python3</span> bot.py check --online
+<span class="c-cmd">python3</span> bot.py media
+<span class="c-cmd">python3</span> bot.py once
+<span class="c-cmd">python3</span> bot.py report
+
+<span class="c-dim"># When the report looks right, arm and run</span>
+<span class="c-cmd">python3</span> bot.py arm 20
+<span class="c-cmd">python3</span> bot.py run</pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <div class="foot-row">
+        <div>
+          <strong>tinyreply</strong> · MIT License · Not affiliated with Meta, Instagram, ManyChat, or ChatPlace.
+        </div>
+        <div class="foot-links">
+          <a href="https://github.com/Lemelson/tinyreply">GitHub</a>
+          <a href="demo/?lang=en">Live Demo</a>
+          <a href="https://github.com/Lemelson/tinyreply/releases/latest">Releases</a>
+          <a href="https://github.com/Lemelson/tinyreply/blob/main/autoreply/SPEC.md">Specification</a>
+          <a href="https://github.com/Lemelson/tinyreply/blob/main/AGENTS.md">AGENTS.md</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      var tabs = document.querySelectorAll('.tab-btn');
+      var panels = document.querySelectorAll('.showcase-panel');
+      var caption = document.getElementById('showcase-caption');
+      tabs.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var target = btn.getAttribute('data-tab');
+          tabs.forEach(function (b) {
+            var active = b === btn;
+            b.classList.toggle('is-active', active);
+            b.setAttribute('aria-selected', active ? 'true' : 'false');
+          });
+          panels.forEach(function (p) {
+            var active = p.getAttribute('data-panel') === target;
+            p.classList.toggle('is-active', active);
+            if (active && caption) caption.textContent = p.getAttribute('data-caption') || '';
+          });
+        });
+      });
+
+      var copyBtn = document.getElementById('copy-qs');
+      var qsCode = document.getElementById('qs-code');
+      if (copyBtn && qsCode && navigator.clipboard) {
+        copyBtn.addEventListener('click', function () {
+          navigator.clipboard.writeText(qsCode.innerText).then(function () {
+            copyBtn.textContent = 'Copied';
+            setTimeout(function () { copyBtn.textContent = 'Copy'; }, 1800);
+          });
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

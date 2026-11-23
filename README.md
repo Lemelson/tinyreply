@@ -1,13 +1,23 @@
 <p align="center"><img src="docs/img/hero.svg" alt="tinyreply: comment a keyword, get the link in DM. 32 MB RAM, 0 dependencies, 0 open ports by default, 1,147 tests" width="100%"></p>
 
 <p align="center">
+  <a href="https://lemelson.github.io/tinyreply/"><img alt="Website" src="https://img.shields.io/badge/website-tinyreply-4f46e5"></a>
+  <a href="https://github.com/Lemelson/tinyreply/releases/latest"><img alt="Latest Release" src="https://img.shields.io/github/v/release/Lemelson/tinyreply?color=dd2a7b"></a>
   <a href="https://github.com/Lemelson/tinyreply/actions/workflows/tests.yml"><img alt="tests" src="https://github.com/Lemelson/tinyreply/actions/workflows/tests.yml/badge.svg"></a>
   <a href="LICENSE"><img alt="MIT" src="https://img.shields.io/badge/license-MIT-blue"></a>
   <img alt="Python 3.12+" src="https://img.shields.io/badge/python-3.12%2B-3776ab">
   <img alt="dependencies: none" src="https://img.shields.io/badge/dependencies-none-success">
 </p>
 
-**tinyreply** is a self-hosted, ManyChat-style "comment a keyword, get the link in DM" bot for Instagram.
+<p align="center">
+  <a href="https://lemelson.github.io/tinyreply/"><b>🌐 Website</b></a> ·
+  <a href="https://lemelson.github.io/tinyreply/demo/?lang=en"><b>▶ Try the Live Panel Demo</b></a> ·
+  <a href="https://github.com/Lemelson/tinyreply/releases/latest"><b>📦 Download Release</b></a> ·
+  <a href="#quick-start">Quick Start</a> ·
+  <a href="#compared-with-the-alternatives">vs ManyChat</a>
+</p>
+
+**tinyreply** is a **free self-hosted ManyChat alternative** — a lightweight **Instagram comment-to-DM autoresponder** ("comment a keyword, get the link in DM").
 Someone comments `guide` under your reel, and a minute or two later they have a private message with your link and a
 public "check your DMs" reply under their comment.
 
@@ -15,7 +25,7 @@ It is the opposite of the usual open-source ManyChat clone: not a platform for a
 program for one creator on one cheap server**. It uses only Meta's official Instagram API, and it was built
 around a single promise: **nobody gets the DM twice, and nobody is silently skipped.**
 
-**[▶ Try the panel live](https://lemelson.github.io/tinyreply/demo/?lang=en)**: invented data, nothing to install.
+**[▶ Try the panel live](https://lemelson.github.io/tinyreply/demo/?lang=en)** (invented data, nothing to install) or visit the **[project website](https://lemelson.github.io/tinyreply/)**.
 
 <p align="center"><img src="docs/screenshots/overview.png" alt="The web panel: greeting, today's count, alerts with what to do, the funnel from request to click, sends per hour" width="100%"></p>
 
